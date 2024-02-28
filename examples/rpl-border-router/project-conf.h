@@ -31,6 +31,8 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
+#define LOG_CONF_LEVEL_RPL      LOG_LEVEL_INFO
+
 #ifdef CONTIKI_TARGET_SKY
 /* Save some RAM and ROM */
 #define QUEUEBUF_CONF_NUM              4
