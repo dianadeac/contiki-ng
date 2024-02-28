@@ -95,7 +95,7 @@ pwm_enable(uint32_t freq, uint8_t duty, uint32_t count, uint8_t timer,
 {
   uint8_t offset = 0;
   uint32_t interval_load, duty_count, copy;
-  uint32_t gpt_base, gpt_en, gpt_dir;
+  uint32_t gpt_base, gpt_dir; //gpt_en
 
   if((freq < PWM_FREQ_MIN) || (freq > PWM_FREQ_MAX) ||
      (duty < PWM_DUTY_MIN) || (duty > PWM_DUTY_MAX) ||
@@ -115,12 +115,12 @@ pwm_enable(uint32_t freq, uint8_t duty, uint32_t count, uint8_t timer,
   lpm_register_peripheral(permit_pm1);
 
   gpt_base = PWM_GPTIMER_NUM_TO_BASE(timer);
-  gpt_en = GPTIMER_CTL_TAEN;
+  //gpt_en = GPTIMER_CTL_TAEN;
   gpt_dir = GPTIMER_CTL_TAPWML;
 
   if(ab == PWM_TIMER_B) {
     offset = 4;
-    gpt_en = GPTIMER_CTL_TBEN;
+    //gpt_en = GPTIMER_CTL_TBEN;
     gpt_dir = GPTIMER_CTL_TBPWML;
   }
 
@@ -128,7 +128,9 @@ pwm_enable(uint32_t freq, uint8_t duty, uint32_t count, uint8_t timer,
 
   /* Restore later, ensure GPTIMER_CTL_TxEN and GPTIMER_CTL_TxPWML are clear */
   copy = REG(gpt_base + GPTIMER_CTL);
-  copy &= ~(gpt_en | gpt_dir);
+  //copy &= ~(gpt_en | gpt_dir);
+
+  copy &= ~(gpt_dir); //Do not disable enable register, causes flashing!
 
   /* Enable module clock for the GPTx in Active mode */
   REG(SYS_CTRL_RCGCGPT) |= (SYS_CTRL_RCGCGPT_GPT0 << timer);
@@ -365,5 +367,212 @@ pwm_disable(uint8_t timer, uint8_t ab, uint8_t port, uint8_t pin)
 
   return PWM_SUCCESS;
 }
+
+
+int8_t
+pwm_configtimer(uint32_t freq, uint8_t timer, uint8_t ab)
+{
+  uint8_t offset = 0;
+  uint32_t interval_load, copy;
+  uint32_t gpt_base, gpt_en, gpt_dir;
+
+  if((freq < PWM_FREQ_MIN) || (freq > PWM_FREQ_MAX) ||
+     (timer > PWM_TIMER_MAX) || (timer < PWM_TIMER_MIN)) {
+    PRINTF("PWM: Invalid PWM settings\n");
+    return PWM_ERROR;
+  }
+
+  /* GPT0 timer A is used for clock_delay_usec() in clock.c */
+  if((ab == PWM_TIMER_A) && (timer == PWM_TIMER_0)) {
+    PRINTF("PWM: GPT0 (timer A) is reserved for clock_delay_usec()\n");
+    return PWM_ERROR;
+  }
+
+  PRINTF("PWM: F%08luHz: on GPT%u-%u\n", freq, timer, ab);
+
+  lpm_register_peripheral(permit_pm1);
+
+  gpt_base = PWM_GPTIMER_NUM_TO_BASE(timer);
+  gpt_en = GPTIMER_CTL_TAEN;
+  gpt_dir = GPTIMER_CTL_TAPWML;
+
+  if(ab == PWM_TIMER_B) {
+    offset = 4;
+    gpt_en = GPTIMER_CTL_TBEN;
+    gpt_dir = GPTIMER_CTL_TBPWML;
+  }
+
+  PRINTF("PWM: GPT_x_BASE 0x%08lX (%u)\n", gpt_base, offset);
+
+  /* Restore later, ensure GPTIMER_CTL_TxEN and GPTIMER_CTL_TxPWML are clear */
+  copy = REG(gpt_base + GPTIMER_CTL);
+  copy &= ~(gpt_en | gpt_dir);
+
+  /* Enable module clock for the GPTx in Active mode */
+  REG(SYS_CTRL_RCGCGPT) |= (SYS_CTRL_RCGCGPT_GPT0 << timer);
+  /* Enable module clock for the GPTx in Sleep mode */
+  REG(SYS_CTRL_SCGCGPT) |= (SYS_CTRL_SCGCGPT_GPT0 << timer);
+  /* Enable module clock for the GPTx in PM0, in PM1 and below this doesn't matter */
+  REG(SYS_CTRL_DCGCGPT) |= (SYS_CTRL_DCGCGPT_GPT0 << timer);
+
+  /* Stop the timer */
+  REG(gpt_base + GPTIMER_CTL) = 0;
+  /* Use 16-bit timer */
+  REG(gpt_base + GPTIMER_CFG) = PWM_GPTIMER_CFG_SPLIT_MODE;
+  /* Configure PWM mode */
+  REG(gpt_base + GPTIMER_TAMR + offset) = 0;
+  REG(gpt_base + GPTIMER_TAMR + offset) |= GPTIMER_TAMR_TAAMS;
+  REG(gpt_base + GPTIMER_TAMR + offset) |= GPTIMER_TAMR_TAMR_PERIODIC;
+
+  /* Get the peripheral clock and equivalent deassert count, depending on the
+   * value given by the user, either use the count number of the duty cycle in
+   * percentage
+   */
+  interval_load = sys_ctrl_get_sys_clock() / freq;
+
+  PRINTF("PWM: sys %luHz: %lu\n", sys_ctrl_get_sys_clock(),
+         interval_load);
+
+  /* Set the start value (period), count down */
+  REG(gpt_base + GPTIMER_TAILR + offset) = ((uint16_t *)&interval_load)[0] - 1;
+  /* Set the deassert period */
+//  REG(gpt_base + GPTIMER_TAMATCHR + offset) = ((uint16_t *)&duty_count)[0] - 1;
+  /* Set the prescaler if required */
+  REG(gpt_base + GPTIMER_TAPR + offset) = ((uint8_t *)&interval_load)[2];
+  /* Set the prescaler match if required */
+//  REG(gpt_base + GPTIMER_TAPMR + offset) = ((uint8_t *)&duty_count)[2];
+  /* Restore the register content */
+  REG(gpt_base + GPTIMER_CTL) |= (copy | gpt_dir);
+
+  PRINTF("PWM: TnILR %lu ", REG(gpt_base + (GPTIMER_TAILR + offset)));
+//  PRINTF("TnMATCHR %lu  ", REG(gpt_base + (GPTIMER_TAMATCHR + offset)));
+  PRINTF("TnPR %lu  ", REG(gpt_base + (GPTIMER_TAPR + offset)));
+//  PRINTF("TnPMR %lu\n", REG(gpt_base + (GPTIMER_TAPMR + offset)));
+
+  return PWM_SUCCESS;
+}
+
+
+int8_t
+pwm_dutycycle(uint8_t timer, uint8_t ab, uint8_t port, uint8_t pin, uint32_t freq, uint16_t duty)
+{
+  uint8_t offset = 0;
+
+  uint32_t duty_count, interval_load;
+  uint32_t gpt_base, gpt_en, gpt_sel;
+
+
+  if((duty < PWM_DUTY_MIN) || (duty > PWM_PROMILLE_DUTY_MAX)) {
+	PRINTF("PWM: Invalid PWM settings\n");
+	return PWM_ERROR;
+  }
+
+  if((ab > PWM_TIMER_B) || (timer < PWM_TIMER_MIN) ||
+     (timer > PWM_TIMER_MAX)) {
+    PRINTF("PWM: Invalid PWM values\n");
+    return PWM_ERROR;
+  }
+
+  if(!pwm_configured(timer, ab)) {
+    PRINTF("PWM: GPTn not configured as PWM\n");
+    return PWM_ERROR;
+  }
+
+  /* CC2538 has 4 ports (A-D) and up to 8 pins (0-7) */
+  if((port > GPIO_D_NUM) || (pin > 7)) {
+    PRINTF("PWM: Invalid pin/port settings\n");
+    return PWM_ERROR;
+  }
+
+  /* Map to given port/pin */
+  gpt_sel = IOC_PXX_SEL_GPT0_ICP1 + (timer * 2);
+  if(ab == PWM_TIMER_B) {
+    gpt_sel++;
+  }
+
+
+  if(duty > 0 && duty < PWM_PROMILLE_DUTY_MAX){
+
+
+	  gpt_base = PWM_GPTIMER_NUM_TO_BASE(timer);
+	  if(ab == PWM_TIMER_B) {
+	    offset = 4;
+	  }
+
+	  interval_load = sys_ctrl_get_sys_clock() / freq;
+	  duty_count = ((interval_load * duty) + 1) / PWM_PROMILLE_DUTY_MAX;
+
+	  PRINTF("PWM: sys %luHz: %lu %lu\n", sys_ctrl_get_sys_clock(), interval_load, duty_count);
+
+
+	  /* Set the deassert period */
+	  REG(gpt_base + GPTIMER_TAMATCHR + offset) = ((uint16_t *)&duty_count)[0] - 1;
+	  /* Set the prescaler match if required */
+	  REG(gpt_base + GPTIMER_TAPMR + offset) = ((uint8_t *)&duty_count)[2];
+
+	  //PRINTF("TnMATCHR %lu  ", REG(gpt_base + (GPTIMER_TAMATCHR + offset)));
+	  //PRINTF("TnPMR %lu\n", REG(gpt_base + (GPTIMER_TAPMR + offset)));
+
+
+	  ioc_set_sel(port, pin, gpt_sel);
+	  ioc_set_over(port, pin, IOC_OVERRIDE_OE);
+	  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+
+	  gpt_en = (ab == PWM_TIMER_B) ? GPTIMER_CTL_TBEN : GPTIMER_CTL_TAEN;
+	  REG(gpt_base + GPTIMER_CTL) |= gpt_en;
+	  //PRINTF("PWM: ON -> Timer %u (%u) IOC_PXX_SEL_GPTx_IPCx 0x%08lX\n", timer, ab, gpt_sel);
+	  PRINTF("PWM: ON %u\%", duty);
+  } else {
+	  GPIO_SOFTWARE_CONTROL(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+  	  GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+
+	  if(duty >= PWM_PROMILLE_DUTY_MAX){
+		  GPIO_SET_PIN(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+		  PRINTF("PWM: duty cycle 100\%, GPIO SET HIGH\n");
+	  }
+	  else{
+		  GPIO_CLR_PIN(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+		  PRINTF("PWM: duty cycle 0\%, GPIO SET LOW\n");
+	  }
+  }
+
+
+
+  return PWM_SUCCESS;
+}
+
+
+int8_t pwm_configure(pwm_t *obj, uint8_t timer, uint8_t ab, uint32_t freq, uint8_t port, uint8_t pin, uint8_t off_state){
+	if(obj == NULL)
+		return PWM_ERROR;
+
+	obj->timer = timer;
+	obj->ab = ab;
+	obj->freq = freq;
+	obj->port = port;
+	obj->pin = pin;
+	obj->off_state = off_state;
+
+	return pwm_configtimer(freq, timer, ab);
+}
+
+int8_t pwm_startdutycycle(pwm_t *obj, uint16_t duty){
+	if(obj == NULL)
+		return PWM_ERROR;
+
+	obj->duty = duty;
+	return pwm_dutycycle(obj->timer, obj->ab, obj->port, obj->pin, obj->freq, duty);
+}
+
+int8_t pwm_stop2(pwm_t *obj){
+	if(obj == NULL)
+		return PWM_ERROR;
+
+	return pwm_stop(obj->timer, obj->ab, obj->port, obj->pin, obj->off_state);
+
+}
+
+
+
 /*---------------------------------------------------------------------------*/
 /** @} */

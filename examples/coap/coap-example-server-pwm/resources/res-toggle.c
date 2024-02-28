@@ -31,15 +31,32 @@
 
 /**
  * \file
- *      Erbium (Er) example project configuration.
+ *      Example resource
  * \author
  *      Matthias Kovatsch <kovatsch@inf.ethz.ch>
  */
 
-#ifndef PROJECT_CONF_H_
-#define PROJECT_CONF_H_
+#include "contiki.h"
+#include "coap-engine.h"
+#include "dev/leds.h"
 
-#define LOG_LEVEL_APP LOG_LEVEL_DBG
-#define PLATFORM_HAS_LEDS    1
+#include <string.h>
 
-#endif /* PROJECT_CONF_H_ */
+#if PLATFORM_HAS_LEDS || LEDS_COUNT
+
+static void res_post_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
+
+/* A simple actuator example. Toggles the red led */
+RESOURCE(res_toggle,
+         "title=\"Red LED\";rt=\"Control\"",
+         NULL,
+         res_post_handler,
+         NULL,
+         NULL);
+
+static void
+res_post_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+  leds_toggle(LEDS_RED);
+}
+#endif /* PLATFORM_HAS_LEDS */
