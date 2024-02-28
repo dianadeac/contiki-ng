@@ -66,7 +66,7 @@
 #ifdef MQTT_CLIENT_CONF_BROKER_IP_ADDR
 #define MQTT_CLIENT_BROKER_IP_ADDR MQTT_CLIENT_CONF_BROKER_IP_ADDR
 #else
-#define MQTT_CLIENT_BROKER_IP_ADDR "fd00::1"
+#define MQTT_CLIENT_BROKER_IP_ADDR "fd00::212:4b00:14b5:ef01"
 #endif
 /*---------------------------------------------------------------------------*/
 /*
@@ -83,7 +83,7 @@
 #ifdef MQTT_CLIENT_CONF_ORG_ID
 #define MQTT_CLIENT_ORG_ID MQTT_CLIENT_CONF_ORG_ID
 #else
-#define MQTT_CLIENT_ORG_ID "quickstart"
+#define MQTT_CLIENT_ORG_ID "123"
 #endif
 /*---------------------------------------------------------------------------*/
 /* MQTT token */
@@ -324,8 +324,8 @@ pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk,
           topic_len, chunk_len, chunk);
 
   /* If we don't like the length, ignore */
-  if(topic_len != 23 || chunk_len != 1) {
-    LOG_ERR("Incorrect topic or chunk len. Ignored\n");
+  if(topic_len != 23) {
+    LOG_ERR("Incorrect topic len. Ignored\n");
     return;
   }
 
@@ -334,12 +334,40 @@ pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk,
     LOG_ERR("Incorrect format\n");
   }
 
-  if(strncmp(&topic[10], "leds", 4) == 0) {
-    LOG_DBG("Received MQTT SUB\n");
-    if(chunk[0] == '1') {
+  static int ledr = 0;
+  static int ledg = 0;
+  static int ledb = 0;
+  printf("%d %d %d\n", ledr, ledg, ledb);
+  if(strncmp(&topic[10], "ledr", 4) == 0) {
+    LOG_DBG("Received MQTT SUB ledr\n");
+    if(ledr == 0) {
       leds_on(LEDS_RED);
-    } else if(chunk[0] == '0') {
+      ledr = 1;
+    } else if(ledr == 1) {
       leds_off(LEDS_RED);
+      ledr = 0;
+    }
+    return;
+  }
+  if(strncmp(&topic[10], "ledg", 4) == 0) {
+    LOG_DBG("Received MQTT SUB ledg\n");
+    if(ledg == 0) {
+      leds_on(LEDS_GREEN);
+      ledg = 1;
+    } else if(ledg == 1) {
+      leds_off(LEDS_GREEN);
+      ledg = 0;
+    }
+    return;
+  }
+  if(strncmp(&topic[10], "ledb", 4) == 0) {
+    LOG_DBG("Received MQTT SUB ledb\n");
+    if(ledb == 0) {
+      leds_on(LEDS_BLUE);
+      ledb = 1;
+    } else if(ledb == 1) {
+      leds_off(LEDS_BLUE);
+      ledb = 0;
     }
     return;
   }
@@ -423,8 +451,7 @@ mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data)
 static int
 construct_pub_topic(void)
 {
-  int len = snprintf(pub_topic, BUFFER_SIZE, "iot-2/evt/%s/fmt/json",
-                     conf.event_type_id);
+  int len = snprintf(pub_topic, BUFFER_SIZE, "iot-2/cmd/ledr/fmt/json");
 
   /* len < 0: Error. Len >= BUFFER_SIZE: Buffer too small */
   if(len < 0 || len >= BUFFER_SIZE) {
@@ -442,8 +469,7 @@ construct_pub_topic(void)
 static int
 construct_sub_topic(void)
 {
-  int len = snprintf(sub_topic, BUFFER_SIZE, "iot-2/cmd/%s/fmt/json",
-                     conf.cmd_type);
+  int len = snprintf(sub_topic, BUFFER_SIZE, "#");//conf.cmd_type);
 
   /* len < 0: Error. Len >= BUFFER_SIZE: Buffer too small */
   if(len < 0 || len >= BUFFER_SIZE) {
@@ -806,12 +832,12 @@ state_machine(void)
         subscribe();
         state = STATE_PUBLISHING;
       } else {
-        leds_on(MQTT_CLIENT_STATUS_LED);
-        ctimer_set(&ct, PUBLISH_LED_ON_DURATION, publish_led_off, NULL);
+        //leds_on(MQTT_CLIENT_STATUS_LED);
+        //ctimer_set(&ct, PUBLISH_LED_ON_DURATION, publish_led_off, NULL);
         LOG_DBG("Publishing\n");
         publish();
       }
-      etimer_set(&publish_periodic_timer, conf.pub_interval);
+      //etimer_set(&publish_periodic_timer, conf.pub_interval);
       /* Return here so we don't end up rescheduling the timer */
       return;
     } else {
@@ -844,8 +870,7 @@ state_machine(void)
       interval = connect_attempt < 3 ? RECONNECT_INTERVAL << connect_attempt :
         RECONNECT_INTERVAL << 3;
 
-      LOG_DBG("Disconnected. Attempt %u in %lu ticks\n", connect_attempt,
-              (unsigned long)interval);
+      LOG_DBG("Disconnected. Attempt %u in %lu ticks\n", connect_attempt, interval);
 
       etimer_set(&publish_periodic_timer, interval);
 
@@ -909,6 +934,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
   uip_icmp6_echo_reply_callback_add(&echo_reply_notification,
                                     echo_reply_handler);
   etimer_set(&echo_request_timer, conf.def_rt_ping_interval);
+
+  state_machine();
 
   /* Main loop */
   while(1) {
