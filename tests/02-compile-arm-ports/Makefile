@@ -67,9 +67,9 @@ EXAMPLES = \
 benchmarks/rpl-req-resp/zoul \
 coap/coap-example-client/zoul \
 coap/coap-example-server/zoul \
+dev/button-hal/gecko:BOARD=brd4162a \
+dev/button-hal/gecko:BOARD=brd4166a \
 dev/gpio-hal/zoul:BOARD=orion \
-dev/gpio-hal/gecko:BOARD=brd4162a \
-dev/gpio-hal/gecko:BOARD=brd4166a \
 dev/leds/simplelink:BOARD=srf06/cc26x0 \
 dev/leds/gecko:BOARD=brd4162a \
 dev/leds/gecko:BOARD=brd4166a \
@@ -159,6 +159,7 @@ platform-specific/cc26x0-cc13x0/base-demo/simplelink:BOARD=sensortag/cc1350 \
 platform-specific/cc26x0-cc13x0/base-demo/simplelink:BOARD=sensortag/cc1352r1 \
 platform-specific/nrf/start-network-core/nrf:BOARD=nrf5340/dk/application \
 platform-specific/nrf/start-network-core/nrf:BOARD=nrf5340/dk/network \
+platform-specific/nrf/trustzone/nrf:BOARD=nrf5340/dk/application \
 platform-specific/zoul/at-test/zoul \
 platform-specific/zoul/orion/client/zoul:BOARD=orion \
 platform-specific/zoul/orion/ip64-router/zoul:BOARD=orion \
