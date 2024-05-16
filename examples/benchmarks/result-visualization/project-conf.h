@@ -30,15 +30,21 @@
  */
 
 /* Logging */
-#define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_INFO
+#define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_DBG
 #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_INFO
+#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_DBG
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
 /* Enable printing of packet counters */
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
+
+/* Change RPL MOP*/
+#define RPL_CONF_MOP RPL_MOP_NON_STORING
+
+/*Disable the RPL probing*/
+#define RPL_CONF_WITH_PROBING 0
 
 /* Application settings */
 #define APP_SEND_INTERVAL_SEC 10

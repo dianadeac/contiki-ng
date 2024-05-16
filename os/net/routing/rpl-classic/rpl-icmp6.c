@@ -1116,9 +1116,9 @@ dao_input(void)
   uint8_t instance_id;
 
   /* Destination Advertisement Object */
-  LOG_INFO("Received a DAO from ");
-  LOG_INFO_6ADDR(&UIP_IP_BUF->srcipaddr);
-  LOG_INFO_("\n");
+  // LOG_INFO("Received a DAO from ");
+  // LOG_INFO_6ADDR(&UIP_IP_BUF->srcipaddr);
+  // LOG_INFO_("\n");
 
   if(uip_len <= uip_l3_icmp_hdr_len) {
     LOG_WARN("Ignoring DAO ICMPv6 message without DAO header\n");

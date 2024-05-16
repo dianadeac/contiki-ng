@@ -10,7 +10,7 @@ SELF_PATH = os.path.dirname(os.path.abspath(__file__))
 CONTIKI_PATH = os.path.dirname(os.path.dirname(os.path.dirname(SELF_PATH)))
 
 COOJA_PATH = os.path.normpath(os.path.join(CONTIKI_PATH, "tools", "cooja"))
-cooja_input = 'cooja.csc'
+cooja_input = 'rpl-scheduler-1.csc'
 cooja_output = 'COOJA.testlog'
 
 #######################################################

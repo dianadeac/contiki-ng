@@ -4,6 +4,8 @@ import os
 import sys
 import time
 import matplotlib.pyplot as pl
+import numpy as np
+import argparse 
 
 ###########################################
 
@@ -15,6 +17,7 @@ PLOT_ALL_NODES = True
 LOG_FILE = 'COOJA.testlog'
 
 COORDINATOR_ID = 1
+MOP = 1
 
 # for charge calculations
 CC2650_MHZ = 48
@@ -67,6 +70,10 @@ class NodeStats:
         self.rdc_joined = None
         self.charge = None
 
+        # metrics related to the build of the network
+        self.received_daos = []
+        self.sent_daos = []
+        
     # calculate the final metrics
     def calc(self):
         if self.energest_total:
@@ -154,13 +161,13 @@ def addr_to_id(addr):
 ###########################################
 # Parse a log file
 
-def analyze_results(filename, is_testbed):
+def analyze_results(filename, is_testbed, MOP):
     nodes = {}
-
+    
     in_initialization = True
 
     start_ts_unix = None
-
+    
     with open(filename, "r") as f:
         for line in f:
             line = line.strip()
@@ -196,6 +203,7 @@ def analyze_results(filename, is_testbed):
                 if nodes[node].tsch_join_time_sec is None:
                     nodes[node].tsch_join_time_sec = ts / 1000
                 nodes[node].is_tsch_joined = True
+                print("node {} joined tsch at {} s".format(nodes[node].id, nodes[node].tsch_join_time_sec))
                 continue
 
             if "leaving the network" in line:
@@ -214,6 +222,7 @@ def analyze_results(filename, is_testbed):
                 nodes[node].rpl_parent = extract_ipaddr(fields[6])
                 if nodes[node].rpl_join_time_sec is None:
                     nodes[node].rpl_join_time_sec = ts / 1000
+                print("node {} joined RPL at {} s".format(nodes[node].id, nodes[node].rpl_join_time_sec))
                 continue
 
             # 377018480 76 [INFO: RPL       ] parent switch: (NULL IP addr) -> fe80::244:44:44:44
@@ -224,6 +233,26 @@ def analyze_results(filename, is_testbed):
                     nodes[node].rpl_join_time_sec = ts / 1000
                 continue
 
+            # This message only appears in MOP 1
+            # 16321928 1 [INFO: RPL       ] Received a DAO from fd00::20a:a:a:a
+            if MOP == 1 and "Received a DAO from" in line:
+                nodes[node].received_daos.append((addr_to_id(extract_ipaddr(fields[9])),ts/1000))
+                continue
+
+            # 39590000 16 [INFO: RPL       ] Sending a DAO with sequence number 241, lifetime 30, prefix fd00::210:10:10:10 to fd00::201:1:1:1 , parent fe80::20a:a:a:a
+            if MOP == 1 and "Sending a DAO" in line:
+                nodes[node].sent_daos.append((int(node),ts/1000))
+              
+                continue
+
+            # This message appears in MOP 2
+            # 212977128 2 [INFO: RPL       ] DAO lifetime: 30, prefix length: 128 prefix: fd00::208:8:8:8
+            
+            if "DAO lifetime" in line:
+                if MOP == 2 and nodes[node].id == COORDINATOR_ID:
+                    
+                    nodes[node].received_daos.append((addr_to_id(extract_ipaddr(fields[12])),ts/1000))
+                    continue
             # 120904000 4 [INFO: App       ] app generate packet seqnum=1
             if "app generate packet" in line:
                 seqnum = int(fields[8].split("=")[1])
@@ -301,9 +330,12 @@ def analyze_results(filename, is_testbed):
     # end to end PDR
     total_e2e_sent = 0
     total_e2e_received = 0
+    all_sent_daos = []
     for k in sorted(nodes.keys()):
         n = nodes[k]
         if n.id == COORDINATOR_ID:
+            received_daos = n.received_daos
+           
             continue
         ll_sent, ll_acked, ll_queue_dropped, e2e_sent, e2e_received = n.calc()
         if n.is_valid or PLOT_ALL_NODES:
@@ -314,8 +346,12 @@ def analyze_results(filename, is_testbed):
                 "rpl_switches": n.rpl_parent_changes,
                 "duty_cycle": n.rdc,
                 "duty_cycle_joined": n.rdc_joined,
-                "charge": n.charge
+                "charge": n.charge,
+                "tsch_join": n.tsch_join_time_sec,
+                "rpl_join": n.rpl_join_time_sec,
+                
             }
+            all_sent_daos.extend(n.sent_daos) 
             r.append(d)
             total_ll_sent += ll_sent
             total_ll_acked += ll_acked
@@ -324,7 +360,7 @@ def analyze_results(filename, is_testbed):
             total_e2e_received += e2e_received
     ll_par = 100.0 * total_ll_acked / total_ll_sent if total_ll_sent else 0.0
     e2e_pdr = 100.0 * total_e2e_received / total_e2e_sent if total_e2e_sent else 0.0
-    return r, ll_par, total_ll_queue_dropped, e2e_pdr
+    return r, ll_par, total_ll_queue_dropped, e2e_pdr, received_daos, all_sent_daos
 
 #######################################################
 # Plot the results of a given metric as a bar chart
@@ -355,6 +391,35 @@ def plot(results, metric, ylabel):
     pl.savefig("plot_{}.pdf".format(metric), format="pdf", bbox_inches='tight')
     pl.close()
 
+def plot_2(results, metric1, metric2, ylabel):
+    pl.figure(figsize=(5, 4))
+
+    data1 = [r[metric1] for r in results]
+    data2 = [r[metric2] for r in results]
+    x = np.arange(1, len(data1)+1)
+    barlist1 = pl.bar(x- 0.2, data1, width=0.4, label = 'TSCH')
+    barlist2 = pl.bar(x+ 0.2, data2, width=0.4, label = 'RPL')
+
+    for b in barlist1:
+        b.set_color("orange")
+        b.set_edgecolor("black")
+        b.set_linewidth(1)
+        b.set
+
+    for b in barlist2:
+        b.set_color("red")
+        b.set_edgecolor("black")
+        b.set_linewidth(1)
+   
+    ids = [r["id"] for r in results]
+    pl.xticks(x, [str(u) for u in ids], rotation=90)
+
+    pl.xlabel("Node ID")
+    pl.ylabel(ylabel)
+
+    pl.savefig("plot_{}_{}.pdf".format(metric1, metric2), format="pdf", bbox_inches='tight')
+    pl.close()
+
 #######################################################
 # Run the application
 
@@ -363,7 +428,8 @@ def main():
     if len(sys.argv) > 1:
         # change from the default
         input_file = sys.argv[1]
-
+        MOP = int(sys.argv[2])
+    
     if not os.access(input_file, os.R_OK):
         print('The input file "{}" does not exist'.format(input_file))
         exit(-1)
@@ -371,18 +437,41 @@ def main():
     with open(input_file, "r") as f:
         is_testbed = "Starting COOJA logger" not in f.read()
 
-    results, ll_par, ll_queue_dropped, e2e_pdr = analyze_results(input_file, is_testbed)
+    results, ll_par, ll_queue_dropped, e2e_pdr, received_daos, all_sent_daos = analyze_results(input_file, is_testbed, MOP)
 
+    tsch_join_times = [r["tsch_join"] for r in results]
+    rpl_join_times = [r["rpl_join"] for r in results]
+
+    received_daos_s = sorted(received_daos,key=lambda x: x[1])
+    print("DAO received {}".format(received_daos_s))
+
+    sent_daos_s = sorted(all_sent_daos,key=lambda x: x[1])
+    print("DAOs sent {}".format(sent_daos_s))
+    
+    first_daos  = {}
+    for dao in received_daos_s:
+        if dao[0] not in first_daos:
+            first_daos[dao[0]] = dao[1]
+    print("First time received DAOs {}".format(first_daos))
+    
     print("Link-layer PAR={:.2f} ({} packets queue dropped) End-to-end PDR={:.2f}".format(
         ll_par, ll_queue_dropped, e2e_pdr))
 
+    print("TSCH joining time: {:.2f}".format(max(tsch_join_times))) 
+    print("RPL joining time based on when the nodes set their preferred parent: {:.2f}".format(max(rpl_join_times)))
+    print("RPL joining time based on when the last DAO message was received: {:.2f}".format(first_daos.get(list(first_daos.keys())[-1])))
+    
     plot(results, "pdr", "Packet Delivery Ratio, %")
     plot(results, "par", "Packet Acknowledgement Ratio, %")
     plot(results, "rpl_switches", "RPL parent switches")
     plot(results, "duty_cycle", "Radio Duty Cycle, %")
     plot(results, "duty_cycle_joined", "Joined Radio Duty Cycle, %")
     plot(results, "charge", "Charge consumption, mC")
-
+    plot(results, "tsch_join", "TSCH joining time, s")
+    plot(results, "rpl_join", "RPL joining time, s")
+    plot_2(results, "tsch_join","rpl_join", "TSCH+RPL joining time, s")
+   
+    
 #######################################################
 
 if __name__ == '__main__':

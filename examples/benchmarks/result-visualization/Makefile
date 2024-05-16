@@ -8,6 +8,9 @@ CONTIKI=../../..
 MAKE_MAC = MAKE_MAC_TSCH
 MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 
+# Use Orchestra as a scheduler
+MODULES += os/services/orchestra
+
 # Energy usage estimation
 MODULES += os/services/simple-energest
 
