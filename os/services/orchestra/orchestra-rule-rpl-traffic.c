@@ -29,10 +29,9 @@
  */
 /**
  * \file
- *         Orchestra: a slotframe with a single shared link, common to all nodes
- *         in the network, used for unicast and broadcast.
+ *         Orchestra: a slotframe  just for RPL traffic
  *
- * \author Simon Duquennoy <simonduq@sics.se>
+ *
  */
 
 #include "contiki.h"
@@ -40,54 +39,73 @@
 
 #include "sys/log.h"
 #define LOG_MODULE "App"
-#define LOG_LEVEL  LOG_LEVEL_DBG
+#define LOG_LEVEL LOG_LEVEL_DBG
+
+#include "net/ipv6/uip-icmp6.h"
+#include "net/routing/rpl-classic/rpl-private.h"
+#include "net/routing/rpl-classic/rpl-dag-root.h"
 
 static uint16_t slotframe_handle = 0;
 
-#if ORCHESTRA_EBSF_PERIOD > 0
-/* There is a slotframe for EBs, use this slotframe for non-EB traffic only */
-#define ORCHESTRA_COMMON_SHARED_TYPE              LINK_TYPE_NORMAL
-#else
-/* There is no slotframe for EBs, use this slotframe both EB and non-EB traffic */
-#define ORCHESTRA_COMMON_SHARED_TYPE              LINK_TYPE_ADVERTISING
-#endif
+/*---------------------------------------------------------------------------*/
+static int
+is_RPL_traffic()
+{
+
+  if (packetbuf_attr(PACKETBUF_ATTR_NETWORK_ID) == UIP_PROTO_ICMP6 &&
+      (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIO) 
+        || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIS) 
+        || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO_ACK)
+         || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO)))
+  {
+    return 1;
+  }
+  return 0;
+}
 
 /*---------------------------------------------------------------------------*/
 static int
 select_packet(uint16_t *slotframe, uint16_t *timeslot, uint16_t *channel_offset)
 {
-  /* We are the default slotframe, select anything */
-  if(slotframe != NULL) {
-    *slotframe = slotframe_handle;
+  if (is_RPL_traffic())
+  {
+    /* This is the slotframe for RPL traffic so we direct on this slotframe only the RPL traffic */
+    if (slotframe != NULL)
+    {
+      *slotframe = slotframe_handle;
+    }
+    if (timeslot != NULL)
+    {
+      *timeslot = 0;
+    }
+    printf("RPL RULE SELECT PACKET\n");
+   
+
+    return 1;
   }
-  if(timeslot != NULL) {
-    *timeslot = 0;
-  }
-  printf("DEFAULT COMMON SELECT PACKET\n");
-  return 1;
+  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static void
 init(uint16_t sf_handle)
 {
   slotframe_handle = sf_handle;
-  /* Default slotframe: for broadcast or unicast to neighbors we
-   * do not have a link to */
-  struct tsch_slotframe *sf_common = tsch_schedule_add_slotframe(slotframe_handle, ORCHESTRA_COMMON_SHARED_PERIOD);
+
+  struct tsch_slotframe *sf_common = tsch_schedule_add_slotframe(slotframe_handle, ORCHESTRA_RPL_PERIOD);
   tsch_schedule_add_link(sf_common,
-      LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED,
-      ORCHESTRA_COMMON_SHARED_TYPE, &tsch_broadcast_address,
-      0, ORCHESTRA_DEFAULT_COMMON_CHANNEL_OFFSET, 1);
+                         LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED,
+                         LINK_TYPE_NORMAL, &tsch_broadcast_address,
+                         0, 1, 1);
 }
 /*---------------------------------------------------------------------------*/
-struct orchestra_rule default_common = {
-  init,
-  NULL,
-  select_packet,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  "default common",
-  ORCHESTRA_COMMON_SHARED_PERIOD,
+struct orchestra_rule rpl_traffic = {
+    init,
+    NULL,
+    select_packet,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    "rpl traffic",
+    ORCHESTRA_RPL_PERIOD,
 };
