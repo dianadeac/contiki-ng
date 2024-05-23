@@ -40,6 +40,10 @@
 #include "orchestra.h"
 #include "net/packetbuf.h"
 
+#include "sys/log.h"
+#define LOG_MODULE "App"
+#define LOG_LEVEL LOG_LEVEL_DBG
+
 static uint16_t slotframe_handle = 0;
 static uint16_t channel_offset = 0;
 static struct tsch_slotframe *sf_eb;
@@ -85,7 +89,9 @@ select_packet(uint16_t *slotframe, uint16_t *timeslot, uint16_t *channel_offset)
       *timeslot = get_node_timeslot(&linkaddr_node_addr);
     }
     /* no need to set the channel offset: it's taken automatically from the link */
+    printf("EB RULE SELECT PACKET\n");
     return 1;
+    
   }
   return 0;
 }
