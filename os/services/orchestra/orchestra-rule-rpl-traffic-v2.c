@@ -46,7 +46,7 @@
 #include "net/routing/rpl-classic/rpl-dag-root.h"
 
 static uint16_t slotframe_handle = 0;
-uint16_t channel_offset = 0;
+uint16_t local_channel_offset = 0;
 
 static struct tsch_slotframe *sf_rpl;
 static struct tsch_link *rpl_link;
@@ -80,51 +80,91 @@ static int
 is_RPL_traffic()
 {
 
-  if (packetbuf_attr(PACKETBUF_ATTR_NETWORK_ID) == UIP_PROTO_ICMP6 &&
-      (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIO) || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIS) || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO_ACK) || packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO)))
-  
+  if (packetbuf_attr(PACKETBUF_ATTR_NETWORK_ID) == UIP_PROTO_ICMP6)
+
   {
     return 1;
   }
   return 0;
 }
 /*---------------------------------------------------------------------------*/
-
+static int
+is_DIO()
+{
+  if (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIO))
+  {
+    return 1;
+  }
+  return 0;
+}
+static int
+is_DIS()
+{
+  if (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DIS))
+  {
+    return 1;
+  }
+  return 0;
+}
+static int
+is_DAO()
+{
+  if (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO))
+  {
+    return 1;
+  }
+  return 0;
+}
+static int
+is_DAO_ACK()
+{
+  if (packetbuf_attr(PACKETBUF_ATTR_CHANNEL) == (ICMP6_RPL << 8 | RPL_CODE_DAO_ACK))
+  {
+    return 1;
+  }
+  return 0;
+}
 static void
 add_uc_link(const linkaddr_t *linkaddr)
 {
-  if(linkaddr != NULL) {
+  if (linkaddr != NULL)
+  {
     uint16_t timeslot = get_node_timeslot(linkaddr);
 
     /* Add a Tx link to the neighbor; do not replace any existing links
      * at that cell. The channel offset here does not matter:
      * select_packet() always sets the right channel offset per packet. */
     tsch_schedule_add_link(sf_rpl,
-        LINK_OPTION_SHARED | LINK_OPTION_RX,
-        LINK_TYPE_NORMAL, &tsch_broadcast_address,
-        timeslot, channel_offset, 0);
+                           LINK_OPTION_SHARED | LINK_OPTION_RX,
+                           LINK_TYPE_NORMAL, &tsch_broadcast_address,
+                           timeslot, local_channel_offset, 0);
   }
 }
 /*---------------------------------------------------------------------------*/
 
-static void
-remove_uc_link(const linkaddr_t *linkaddr)
-{
-  if(linkaddr != NULL) {
-    uint16_t timeslot = get_node_timeslot(linkaddr);
-    tsch_schedule_remove_link_by_offsets(sf_rpl, timeslot, channel_offset);
-    tsch_queue_free_packets_to(linkaddr);
-  }
-}
+// static void
+// remove_uc_link(const linkaddr_t *linkaddr)
+// {
+//   if (linkaddr != NULL)
+//   {
+//     uint16_t timeslot = get_node_timeslot(linkaddr);
+//     tsch_schedule_remove_link_by_offsets(sf_rpl, timeslot, local_channel_offset);
+//     tsch_queue_free_packets_to(linkaddr);
+//   }
+// }
 /*---------------------------------------------------------------------------*/
 static void
 neighbor_updated(const linkaddr_t *linkaddr, uint8_t is_added)
 {
-  if(is_added) {
+
+  if (is_added && !linkaddr_cmp(&orchestra_parent_linkaddr, linkaddr))
+  {
     add_uc_link(linkaddr);
-  } else {
-    remove_uc_link(linkaddr);
   }
+  // else
+  // {
+  //   remove_uc_link(linkaddr);
+  // }
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -134,19 +174,36 @@ select_packet(uint16_t *slotframe, uint16_t *timeslot, uint16_t *channel_offset)
   linkaddr_t *local_addr = &linkaddr_node_addr;
   if (is_RPL_traffic())
   {
-    if (slotframe != NULL)
+
+    // DIO and DIS on CS
+    if (is_DIO() || is_DIS())
     {
-      *slotframe = slotframe_handle;
+      if (slotframe != NULL)
+      {
+        *slotframe = slotframe_handle;
+      }
+      if (timeslot != NULL)
+      {
+        *timeslot = ORCHESTRA_RPL_PERIOD - 1;
+      }
     }
-    if (timeslot != NULL)
+    if (is_DAO() || is_DAO_ACK())
     {
-      *timeslot = get_node_timeslot(local_addr);
+
+      if (slotframe != NULL)
+      {
+        *slotframe = slotframe_handle;
+      }
+      if (timeslot != NULL)
+      {
+        *timeslot = get_node_timeslot(local_addr);
+      }
     }
-    // /* set per-packet channel offset */
-    // if(channel_offset != NULL) {
-    //   *channel_offset = get_node_channel_offset(dest);
-    // }
-    printf("RPL RULE 2 SELECT PACKET\n");
+    /* set per-packet channel offset */
+     if(channel_offset != NULL) {
+       *channel_offset = local_channel_offset;
+     }
+    printf("RPL RULE 2 SELECT PACKET timeslot %u channel_offset %u \n", *timeslot, local_channel_offset);
     return 1;
   }
   return 0;
@@ -196,29 +253,53 @@ new_time_source(const struct tsch_neighbor *old, const struct tsch_neighbor *new
 static void
 init(uint16_t sf_handle)
 {
+  // At init a CS slot will be added common for all the nodes in the network
+  // and a Tx slot based on the properties of the node.
+  // Tx to be used later to transmit DIOs
 
   uint16_t tx_timeslot;
+  uint16_t cs_timeslot;
+
   linkaddr_t *local_addr = &linkaddr_node_addr;
 
-  struct tsch_link *link;
+  struct tsch_link *tx_link;
+  struct tsch_link *cs_link;
 
   slotframe_handle = sf_handle;
   /* Slotframe for RPL transmissions */
   sf_rpl = tsch_schedule_add_slotframe(slotframe_handle, ORCHESTRA_RPL_PERIOD);
-  /* When divices wake up they allocate a Tx (for DIO transmission)*/
+  /* When divices wake up they allocate a Tx (for DIO transmission) and a CS*/
   tx_timeslot = get_node_timeslot(local_addr);
-  link = tsch_schedule_add_link(sf_rpl,
-                                LINK_OPTION_TX,
-                                LINK_TYPE_NORMAL, &tsch_broadcast_address,
-                                tx_timeslot, channel_offset, 1);
-  if (link == NULL)
+  cs_timeslot = ORCHESTRA_RPL_PERIOD-1;
+
+  cs_link = tsch_schedule_add_link(sf_rpl,
+                                   LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED,
+                                   LINK_TYPE_NORMAL,
+                                   &tsch_broadcast_address,
+                                   cs_timeslot, local_channel_offset, 1);
+
+  tx_link = tsch_schedule_add_link(sf_rpl,
+                                   LINK_OPTION_TX,
+                                   LINK_TYPE_NORMAL, &tsch_broadcast_address,
+                                   tx_timeslot, local_channel_offset, 1);
+  if (cs_link == NULL)
   {
-    printf("Adding a RPL link failed \n");
+    printf("Adding a CS link for RPL traffic failed \n");
   }
   else
   {
 
-    printf("Added RPL link -> cell for Tx at: timeslot %u and channel offset %u \n", tx_timeslot, channel_offset);
+    printf("Added CS link for RPL traffic -> CS cell at: timeslot %u and channel offset %u \n", cs_timeslot, local_channel_offset);
+  }
+
+  if (tx_link == NULL)
+  {
+    printf("Adding a Tx RPL link failed \n");
+  }
+  else
+  {
+
+    printf("Added Tx RPL link -> cell for Tx at: timeslot %u and channel offset %u \n", tx_timeslot, local_channel_offset);
   }
 }
 

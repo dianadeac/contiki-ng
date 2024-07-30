@@ -89,7 +89,7 @@ select_packet(uint16_t *slotframe, uint16_t *timeslot, uint16_t *channel_offset)
       *timeslot = get_node_timeslot(&linkaddr_node_addr);
     }
     /* no need to set the channel offset: it's taken automatically from the link */
-    printf("EB RULE SELECT PACKET\n");
+    printf("EB RULE SELECT PACKET on timeslot %u \n", *timeslot);
     return 1;
     
   }

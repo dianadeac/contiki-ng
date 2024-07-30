@@ -47,7 +47,7 @@
 
 #define ORCHESTRA_CONF_RULES                                                             \
     {                                                                                    \
-        &eb_per_time_source, &rpl_traffic, &unicast_per_neighbor_rpl_storing, &default_common \
+        &eb_per_time_source, &rpl_traffic_v2, &unicast_per_neighbor_rpl_storing, &default_common \
     }
 
 /*Disable the RPL probing*/
