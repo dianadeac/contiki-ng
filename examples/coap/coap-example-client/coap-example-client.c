@@ -66,10 +66,10 @@ AUTOSTART_PROCESSES(&er_example_client);
 static struct etimer et;
 
 /* Example URIs that can be queried. */
-#define NUMBER_OF_URLS 4
+#define NUMBER_OF_URLS 5
 /* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
 char *service_urls[NUMBER_OF_URLS] =
-{ ".well-known/core", "/actuators/toggle", "battery/", "error/in//path" };
+{ ".well-known/core", "/actuators/toggle", "battery/", "error/in//path", "actuators/leds" };
 #if PLATFORM_HAS_BUTTON
 static int uri_switch = 0;
 #endif
@@ -111,15 +111,16 @@ PROCESS_THREAD(er_example_client, ev, data)
     PROCESS_YIELD();
 
     if(etimer_expired(&et)) {
-      printf("--Toggle timer--\n");
+      printf("--On/Off LEDS--\n");
 
       /* prepare request, TID is set by COAP_BLOCKING_REQUEST() */
       coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
-      coap_set_header_uri_path(request, service_urls[1]);
+      coap_set_header_uri_path(request, service_urls[4]);
 
-      const char msg[] = "Toggle!";
+      const char msg[] = "mode=on";
 
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
+      coap_set_header_uri_query(request, "color=r");
 
       LOG_INFO_COAP_EP(&server_ep);
       LOG_INFO_("\n");

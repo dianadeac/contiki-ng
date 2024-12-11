@@ -108,7 +108,7 @@ PROCESS_THREAD(er_example_server, ev, data)
   coap_activate_resource(&res_sub, "test/sub");
   coap_activate_resource(&res_b1_sep_b2, "test/b1sepb2");
 #if PLATFORM_HAS_LEDS
-/*  coap_activate_resource(&res_leds, "actuators/leds"); */
+  coap_activate_resource(&res_leds, "actuators/leds"); 
   coap_activate_resource(&res_toggle, "actuators/toggle");
 #endif
 #if PLATFORM_HAS_LIGHT
