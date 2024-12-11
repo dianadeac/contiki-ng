@@ -66,7 +66,8 @@ extern coap_resource_t
   res_sub,
   res_b1_sep_b2;
 #if PLATFORM_HAS_LEDS
-extern coap_resource_t res_leds, res_toggle;
+extern coap_resource_t res_leds, res_toggle, res_pwm_leds;
+void pwm_init_handler( void );
 #endif
 #if PLATFORM_HAS_LIGHT
 #include "dev/light-sensor.h"
@@ -108,8 +109,10 @@ PROCESS_THREAD(er_example_server, ev, data)
   coap_activate_resource(&res_sub, "test/sub");
   coap_activate_resource(&res_b1_sep_b2, "test/b1sepb2");
 #if PLATFORM_HAS_LEDS
-/*  coap_activate_resource(&res_leds, "actuators/leds"); */
+  coap_activate_resource(&res_leds, "actuators/leds");
   coap_activate_resource(&res_toggle, "actuators/toggle");
+  coap_activate_resource(&res_pwm_leds, "actuators/leds/pwm");
+  pwm_init_handler();
 #endif
 #if PLATFORM_HAS_LIGHT
   coap_activate_resource(&res_light, "sensors/light");

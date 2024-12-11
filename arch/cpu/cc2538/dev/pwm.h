@@ -105,6 +105,7 @@
 #define PWM_ON_WHEN_STOP                     1
 #define PWM_GPTIMER_CFG_SPLIT_MODE           0x04
 #define PWM_DUTY_MAX                         100
+#define PWM_PROMILLE_DUTY_MAX                1000
 #define PWM_DUTY_MIN                         0
 #define PWM_FREQ_MIN                         PWM_SYS_16MHZ_PRES_MIN_FREQ
 #define PWM_FREQ_MAX                         PWM_SYS_16MHZ_NO_PRES_MAX_FREQ
@@ -172,6 +173,30 @@ int8_t pwm_set_direction(uint8_t timer, uint8_t ab, uint8_t dir);
  * \return \c   PWM_SUCCESS if successful, else \c PWM_ERROR
  */
 int8_t pwm_toggle_direction(uint8_t timer, uint8_t ab);
+/*---------------------------------------------------------------------------*/
+
+
+
+
+typedef struct {
+  uint8_t timer;
+  uint8_t ab;
+  uint8_t port;
+  uint8_t pin;
+  uint8_t off_state;
+  uint32_t freq;
+  uint16_t duty;
+} pwm_t;
+
+
+int8_t pwm_configure(pwm_t *obj, uint8_t timer, uint8_t ab, uint32_t freq, uint8_t port, uint8_t pin, uint8_t off_state);
+
+int8_t pwm_startdutycycle(pwm_t *obj, uint16_t duty);
+
+int8_t pwm_stop2(pwm_t *obj);
+
+
+
 /*---------------------------------------------------------------------------*/
 /** @} */
 #endif /* PWM_H_ */
