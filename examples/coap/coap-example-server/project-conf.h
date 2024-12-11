@@ -41,4 +41,8 @@
 
 #define LOG_LEVEL_APP LOG_LEVEL_DBG
 
+#define LOG_CONF_LEVEL_COAP  LOG_LEVEL_DBG
+
+#define PLATFORM_HAS_LEDS 1
+
 #endif /* PROJECT_CONF_H_ */

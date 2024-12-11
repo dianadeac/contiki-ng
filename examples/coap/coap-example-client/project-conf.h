@@ -41,6 +41,8 @@
 
 #define LOG_LEVEL_APP LOG_LEVEL_DBG
 
+#define LOG_CONF_LEVEL_COAP  LOG_LEVEL_DBG
+
 /* Enable client-side support for COAP observe */
 #define COAP_OBSERVE_CLIENT            1
 
