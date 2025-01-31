@@ -44,11 +44,11 @@
 /*
  * Enable Efficient route invalidation
  * RFC9009 Destination Cleanup Object message is sent downwards
- * by an ancestor in case there is a route change detected 
+ * by an ancestor in case there is a route change detected
  */
 #ifdef RPL_CONF_WITH_DCO_ROUTE_INVALIDATION
 #define RPL_WITH_DCO_ROUTE_INVALIDATION          RPL_CONF_WITH_DCO_ROUTE_INVALIDATION
-#else 
+#else
 #define RPL_WITH_DCO_ROUTE_INVALIDATION          0
 #endif
 
