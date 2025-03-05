@@ -54,6 +54,13 @@
 #define LOG_WITH_COMPACT_ADDR 0
 #endif /* LOG_CONF_WITH_COMPACT_ADDR */
 
+/* Log bytes as compact hex dump or with whitespace between hexcharacters */
+#ifdef LOG_CONF_WITH_COMPACT_BYTES
+#define LOG_WITH_COMPACT_BYTES LOG_CONF_WITH_COMPACT_BYTES
+#else /* LOG_CONF_WITH_COMPACT_BYTES */
+#define LOG_WITH_COMPACT_BYTES 1
+#endif /* LOG_CONF_WITH_COMPACT_BYTES */
+
 /* Prefix all logs with file name and line-of-code */
 #ifdef LOG_CONF_WITH_LOC
 #define LOG_WITH_LOC LOG_CONF_WITH_LOC
@@ -145,9 +152,13 @@
 #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_NONE
 #endif /* LOG_CONF_LEVEL_COAP */
 
+#ifndef LOG_CONF_LEVEL_DTLS
+#define LOG_CONF_LEVEL_DTLS                        LOG_LEVEL_NONE
+#endif /* LOG_CONF_LEVEL_DTLS */
+
 #ifndef LOG_CONF_LEVEL_SNMP
 #define LOG_CONF_LEVEL_SNMP                        LOG_LEVEL_NONE
-#endif /* LOG_CONF_LEVEL_COAP */
+#endif /* LOG_CONF_LEVEL_SNMP */
 
 #ifndef LOG_CONF_LEVEL_LWM2M
 #define LOG_CONF_LEVEL_LWM2M                       LOG_LEVEL_NONE
@@ -156,6 +167,10 @@
 #ifndef LOG_CONF_LEVEL_MAIN
 #define LOG_CONF_LEVEL_MAIN                        LOG_LEVEL_INFO
 #endif /* LOG_CONF_LEVEL_MAIN */
+
+#ifndef LOG_CONF_LEVEL_SYS
+#define LOG_CONF_LEVEL_SYS                         LOG_LEVEL_NONE
+#endif /* LOG_CONF_LEVEL_SYS */
 
 #endif /* LOG_CONF_H_ */
 
