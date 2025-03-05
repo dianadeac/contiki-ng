@@ -10,11 +10,11 @@ IPADDR=fd00::302:304:506:708
 
 # Starting Contiki-NG native node
 echo "Starting native node - lwm2m/ipso objects"
-sudo $CONTIKI/examples/lwm2m-ipso-objects/example-ipso-objects.native &
+sudo $CONTIKI/examples/lwm2m-ipso-objects/build/native/example-ipso-objects.native &
 CPID=$!
 
 echo "Downloading leshan"
-LESHAN_JAR=leshan-server-demo-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+LESHAN_JAR=leshan-demo-server-2.0.0-SNAPSHOT-jar-with-dependencies.jar
 wget -nv -nc https://joakimeriksson.github.io/resources/$LESHAN_JAR
 sleep 10
 echo "Starting leshan server"
