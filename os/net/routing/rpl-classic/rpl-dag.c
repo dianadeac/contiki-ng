@@ -947,7 +947,11 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p)
        MOP = MOP0, we do not want downward routes. */
     if (instance->mop != RPL_MOP_NO_DOWNWARD_ROUTES)
     {
-      rpl_schedule_dao(instance);
+      #if RPL_WITH_DCO_ROUTE_INVALIDATION
+        rpl_schedule_dao_immediately(instance);
+      #else
+        rpl_schedule_dao(instance);
+      #endif /* RPL_WITH_DCO_ROUTE_INVALIDATION */
     }
 
     rpl_reset_dio_timer(instance);
