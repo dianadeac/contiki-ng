@@ -382,6 +382,18 @@
 #endif
 
 /*
+ * RPL with fast reaction. When enabled the node will delete a preferred parent
+  * if it does not respond to unicast messages. The status is obtained from
+  * the rpl_link_callback function. A description of the statuses can be found
+  * in os/net/mac/mac.h
+ */
+#ifdef RPL_CONF_WITH_FAST_REACTION
+#define RPL_WITH_FAST_REACTION RPL_CONF_WITH_FAST_REACTION
+#else
+#define RPL_WITH_FAST_REACTION 0
+#endif
+
+/*
  * Function used to select the next parent to be probed.
  */
 #ifdef RPL_CONF_PROBING_SELECT_FUNC

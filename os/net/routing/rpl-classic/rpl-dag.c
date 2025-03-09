@@ -1103,6 +1103,7 @@ void rpl_nullify_parent(rpl_parent_t *parent)
         {
           #if !RPL_WITH_DCO_ROUTE_INVALIDATION
           dao_output(parent, RPL_ZERO_LIFETIME);
+
           #endif /* !RPL_WITH_DCO_ROUTE_INVALIDATION */
         }
         rpl_set_preferred_parent(dag, NULL);
@@ -1804,6 +1805,10 @@ void rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
     if (previous_dag == NULL)
     {
       /* Add the DIO sender as a candidate parent. */
+      if (dio->rank > dag->rank) {
+        LOG_DBG("Rank too high\n");
+        return;
+      }
       p = rpl_add_parent(dag, dio, from);
       if (p == NULL)
       {

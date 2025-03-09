@@ -77,7 +77,8 @@ rpl_set_mode(enum rpl_mode m)
 
   /* We need to do different things depending on what mode we are
      switching to. */
-  if(m == RPL_MODE_MESH) {
+  if (m == RPL_MODE_MESH)
+  {
 
     /*
      * If we switch to mesh mode, we should send out a DAO message to
@@ -88,33 +89,41 @@ rpl_set_mode(enum rpl_mode m)
     LOG_DBG("rpl_set_mode: switching to mesh mode\n");
     mode = m;
 
-    if(default_instance != NULL) {
+    if (default_instance != NULL)
+    {
       rpl_schedule_dao_immediately(default_instance);
     }
-  } else if(m == RPL_MODE_FEATHER) {
+  }
+  else if (m == RPL_MODE_FEATHER)
+  {
 
     LOG_INFO("rpl_set_mode: switching to feather mode\n");
-    if(default_instance != NULL) {
+    if (default_instance != NULL)
+    {
       LOG_INFO("rpl_set_mode: RPL sending DAO with zero lifetime\n");
-      if(default_instance->current_dag != NULL) {
+      if (default_instance->current_dag != NULL)
+      {
         dao_output(default_instance->current_dag->preferred_parent,
                    RPL_ZERO_LIFETIME);
       }
       rpl_cancel_dao(default_instance);
-    } else {
+    }
+    else
+    {
       LOG_INFO("rpl_set_mode: no default instance\n");
     }
 
     mode = m;
-  } else {
+  }
+  else
+  {
     mode = m;
   }
 
   return oldmode;
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_purge_routes(void)
+void rpl_purge_routes(void)
 {
   uip_ds6_route_t *r;
   uip_ipaddr_t prefix;
@@ -128,9 +137,11 @@ rpl_purge_routes(void)
   /* First pass: decrement lifetime */
   r = uip_ds6_route_head();
 
-  while(r != NULL) {
-    if(r->state.lifetime >= 1 &&
-       r->state.lifetime != RPL_ROUTE_INFINITE_LIFETIME) {
+  while (r != NULL)
+  {
+    if (r->state.lifetime >= 1 &&
+        r->state.lifetime != RPL_ROUTE_INFINITE_LIFETIME)
+    {
       /*
        * If a route is at lifetime == 1, set it to 0, scheduling it
        * for immediate removal below. This achieves the same as the
@@ -144,8 +155,10 @@ rpl_purge_routes(void)
   /* Second pass: remove dead routes. */
   r = uip_ds6_route_head();
 
-  while(r != NULL) {
-    if(r->state.lifetime < 1) {
+  while (r != NULL)
+  {
+    if (r->state.lifetime < 1)
+    {
       /*
        * Routes with lifetime == 1 have only just been decremented
        * from 2 to 1, thus we want to keep them. Hence we use <
@@ -161,7 +174,8 @@ rpl_purge_routes(void)
       /* Propagate this information with a No-Path DAO to the
          preferred parent if we are not a RPL root. */
 
-      if(dag->rank != ROOT_RANK(default_instance)) {
+      if (dag->rank != ROOT_RANK(default_instance))
+      {
         LOG_INFO_(" -> generate No-Path DAO\n");
         dao_output_target(dag->preferred_parent, &prefix, RPL_ZERO_LIFETIME);
         /* Don't schedule more than one No-Path DAO, and let next
@@ -178,11 +192,15 @@ rpl_purge_routes(void)
 #if RPL_WITH_MULTICAST
   mcast_route = uip_mcast6_route_list_head();
 
-  while(mcast_route != NULL) {
-    if(mcast_route->lifetime <= 1) {
+  while (mcast_route != NULL)
+  {
+    if (mcast_route->lifetime <= 1)
+    {
       uip_mcast6_route_rm(mcast_route);
       mcast_route = uip_mcast6_route_list_head();
-    } else {
+    }
+    else
+    {
       mcast_route->lifetime--;
       mcast_route = list_item_next(mcast_route);
     }
@@ -190,8 +208,7 @@ rpl_purge_routes(void)
 #endif
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_remove_routes(rpl_dag_t *dag)
+void rpl_remove_routes(rpl_dag_t *dag)
 {
   uip_ds6_route_t *r;
 #if RPL_WITH_MULTICAST
@@ -200,11 +217,15 @@ rpl_remove_routes(rpl_dag_t *dag)
 
   r = uip_ds6_route_head();
 
-  while(r != NULL) {
-    if(r->state.dag == dag) {
+  while (r != NULL)
+  {
+    if (r->state.dag == dag)
+    {
       uip_ds6_route_rm(r);
       r = uip_ds6_route_head();
-    } else {
+    }
+    else
+    {
       r = uip_ds6_route_next(r);
     }
   }
@@ -212,27 +233,32 @@ rpl_remove_routes(rpl_dag_t *dag)
 #if RPL_WITH_MULTICAST
   mcast_route = uip_mcast6_route_list_head();
 
-  while(mcast_route != NULL) {
-    if(mcast_route->dag == dag) {
+  while (mcast_route != NULL)
+  {
+    if (mcast_route->dag == dag)
+    {
       uip_mcast6_route_rm(mcast_route);
       mcast_route = uip_mcast6_route_list_head();
-    } else {
+    }
+    else
+    {
       mcast_route = list_item_next(mcast_route);
     }
   }
 #endif
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_remove_routes_by_nexthop(uip_ipaddr_t *nexthop, rpl_dag_t *dag)
+void rpl_remove_routes_by_nexthop(uip_ipaddr_t *nexthop, rpl_dag_t *dag)
 {
   uip_ds6_route_t *r;
 
   r = uip_ds6_route_head();
 
-  while(r != NULL) {
-    if(uip_ipaddr_cmp(uip_ds6_route_nexthop(r), nexthop) &&
-       r->state.dag == dag) {
+  while (r != NULL)
+  {
+    if (uip_ipaddr_cmp(uip_ds6_route_nexthop(r), nexthop) &&
+        r->state.dag == dag)
+    {
       r->state.lifetime = 0;
     }
     r = uip_ds6_route_next(r);
@@ -246,7 +272,8 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
 {
   uip_ds6_route_t *rep;
 
-  if((rep = uip_ds6_route_add(prefix, prefix_len, next_hop)) == NULL) {
+  if ((rep = uip_ds6_route_add(prefix, prefix_len, next_hop)) == NULL)
+  {
     LOG_ERR("No space for more route entries\n");
     return NULL;
   }
@@ -266,8 +293,7 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
   return rep;
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_link_callback(const linkaddr_t *addr, int status, int numtx)
+void rpl_link_callback(const linkaddr_t *addr, int status, int numtx)
 {
   uip_ipaddr_t ipaddr;
   rpl_parent_t *parent;
@@ -277,27 +303,66 @@ rpl_link_callback(const linkaddr_t *addr, int status, int numtx)
   uip_ip6addr(&ipaddr, 0xfe80, 0, 0, 0, 0, 0, 0, 0);
   uip_ds6_set_addr_iid(&ipaddr, (uip_lladdr_t *)addr);
 
-  for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
-    if(instance->used == 1) {
+  LOG_DBG("rpl_link_callback number of transmissions %d and status %d \n", numtx, status);
+  for (instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance)
+  {
+    if (instance->used == 1)
+    {
       parent = rpl_find_parent_any_dag(instance, &ipaddr);
-      if(parent != NULL) {
+      if (parent != NULL)
+      {
+        LOG_DBG("rpl_link_callback packet to potential parent\n");
         /* If this is the neighbor we were probing urgently, mark
            urgent probing as done. */
 #if RPL_WITH_PROBING
-        if(instance->urgent_probing_target == parent) {
+        if (instance->urgent_probing_target == parent)
+        {
           instance->urgent_probing_target = NULL;
         }
 #endif /* RPL_WITH_PROBING */
-        /* Trigger DAG rank recalculation. */
-        LOG_DBG("rpl_link_callback triggering update\n");
-        parent->flags |= RPL_PARENT_FLAG_UPDATED;
+        if (status == MAC_TX_OK)
+        {
+          LOG_DBG("rpl_link_callback potential parent status ok\n");
+          /* Trigger DAG rank recalculation. */
+          LOG_DBG("rpl_link_callback triggering update\n");
+          parent->flags |= RPL_PARENT_FLAG_UPDATED;
+        }
+        else
+        {
+          LOG_DBG("rpl_link_callback potential parent status: %d\n", status);
+          switch (status)
+          {
+          case MAC_TX_NOACK:
+            LOG_DBG_("MAC_TX_NOACK\n");
+            break;
+          case MAC_TX_COLLISION:
+            LOG_DBG_("MAC_TX_ERR_COLLISION\n");
+            break;
+          case MAC_TX_QUEUE_FULL:
+            LOG_DBG_("MAC_TX_ERR_SECURITY\n");
+            break;
+          case MAC_TX_ERR:
+            LOG_DBG_("MAC_TX_ERR\n");
+            break;
+          case MAC_TX_ERR_FATAL:
+            LOG_DBG_("MAC_TX_ERR_FATAL\n");
+            break;
+          }
+#if RPL_WITH_FAST_REACTION
+          /*If the preferred parent is the one not answering will delete the parent*/
+          if (parent == instance->current_dag->preferred_parent)
+          {
+            LOG_DBG("rpl_link_callback preferred parent not answering\n");
+            rpl_remove_parent(parent);
+          }
+#endif /* RPL_WITH_FAST_REACTION */
+        }
       }
     }
   }
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
+void rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
 {
   rpl_parent_t *p;
   rpl_instance_t *instance;
@@ -307,13 +372,16 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
   LOG_DBG_6ADDR(&nbr->ipaddr);
 #if UIP_ND6_SEND_NS || UIP_ND6_SEND_RA
   LOG_DBG_(", nscount=%u, state=%u\n", nbr->nscount, nbr->state);
-#else /* UIP_ND6_SEND_NS || UIP_ND6_SEND_RA */
+#else  /* UIP_ND6_SEND_NS || UIP_ND6_SEND_RA */
   LOG_DBG_(", state=%u\n", nbr->state);
 #endif /* UIP_ND6_SEND_NS || UIP_ND6_SEND_RA */
-  for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
-    if(instance->used == 1) {
+  for (instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance)
+  {
+    if (instance->used == 1)
+    {
       p = rpl_find_parent_any_dag(instance, &nbr->ipaddr);
-      if(p != NULL) {
+      if (p != NULL)
+      {
         p->rank = RPL_INFINITE_RANK;
         /* Trigger DAG rank recalculation. */
         LOG_DBG("rpl_ipv6_neighbor_callback infinite rank\n");
@@ -323,26 +391,33 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
   }
 }
 /*---------------------------------------------------------------------------*/
-void
-rpl_purge_dags(void)
+void rpl_purge_dags(void)
 {
   rpl_instance_t *instance;
   rpl_instance_t *end;
   int i;
 
-  for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES;
-      instance < end; ++instance) {
-    if(instance->used) {
-      for(i = 0; i < RPL_MAX_DAG_PER_INSTANCE; i++) {
-        if(instance->dag_table[i].used) {
-          if(instance->dag_table[i].lifetime == 0) {
-            if(!instance->dag_table[i].joined) {
+  for (instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES;
+       instance < end; ++instance)
+  {
+    if (instance->used)
+    {
+      for (i = 0; i < RPL_MAX_DAG_PER_INSTANCE; i++)
+      {
+        if (instance->dag_table[i].used)
+        {
+          if (instance->dag_table[i].lifetime == 0)
+          {
+            if (!instance->dag_table[i].joined)
+            {
               LOG_INFO("Removing dag ");
               LOG_INFO_6ADDR(&instance->dag_table[i].dag_id);
               LOG_INFO_("\n");
               rpl_free_dag(&instance->dag_table[i]);
             }
-          } else {
+          }
+          else
+          {
             instance->dag_table[i].lifetime--;
           }
         }
@@ -379,7 +454,8 @@ init(void)
 static int
 get_sr_node_ipaddr(uip_ipaddr_t *addr, const uip_sr_node_t *node)
 {
-  if(addr != NULL && node != NULL) {
+  if (addr != NULL && node != NULL)
+  {
     memcpy(addr, &((rpl_dag_t *)node->graph)->dag_id, 8);
     memcpy(((unsigned char *)addr) + 8, &node->link_identifier, 8);
     return 1;
@@ -392,7 +468,8 @@ static void
 global_repair(const char *str)
 {
   rpl_dag_t *dag = rpl_get_any_dag();
-  if(dag != NULL && dag->instance != NULL) {
+  if (dag != NULL && dag->instance != NULL)
+  {
     rpl_repair_root(dag->instance->instance_id);
   }
 }
@@ -401,7 +478,8 @@ static void
 local_repair(const char *str)
 {
   rpl_dag_t *dag = rpl_get_any_dag();
-  if(dag != NULL) {
+  if (dag != NULL)
+  {
     rpl_local_repair(dag->instance);
   }
 }
@@ -413,7 +491,8 @@ drop_route(uip_ds6_route_t *route)
      the route gets removed. */
   rpl_dag_t *dag;
   dag = (rpl_dag_t *)route->state.dag;
-  if(dag != NULL && dag->instance != NULL) {
+  if (dag != NULL && dag->instance != NULL)
+  {
     rpl_repair_root(dag->instance->instance_id);
   }
 }
@@ -430,7 +509,8 @@ get_root_ipaddr(uip_ipaddr_t *ipaddr)
   rpl_dag_t *dag;
   /* Use the DAG id as server address if no other has been specified */
   dag = rpl_get_any_dag();
-  if(dag != NULL && ipaddr != NULL) {
+  if (dag != NULL && ipaddr != NULL)
+  {
     uip_ipaddr_copy(ipaddr, &dag->dag_id);
     return 1;
   }
@@ -450,27 +530,27 @@ rpl_is_in_leaf_mode(void)
 }
 /*---------------------------------------------------------------------------*/
 const struct routing_driver rpl_classic_driver = {
-  "RPL Classic",
-  init,
-  rpl_dag_root_set_prefix,
-  rpl_dag_root_start,
-  rpl_dag_root_is_root,
-  get_root_ipaddr,
-  get_sr_node_ipaddr,
-  leave_network,
-  rpl_has_joined,
-  rpl_has_downward_route,
-  global_repair,
-  local_repair,
-  rpl_ext_header_remove,
-  rpl_ext_header_update,
-  rpl_ext_header_hbh_update,
-  rpl_ext_header_srh_update,
-  rpl_ext_header_srh_get_next_hop,
-  rpl_link_callback,
-  rpl_ipv6_neighbor_callback,
-  drop_route,
-  rpl_is_in_leaf_mode,
+    "RPL Classic",
+    init,
+    rpl_dag_root_set_prefix,
+    rpl_dag_root_start,
+    rpl_dag_root_is_root,
+    get_root_ipaddr,
+    get_sr_node_ipaddr,
+    leave_network,
+    rpl_has_joined,
+    rpl_has_downward_route,
+    global_repair,
+    local_repair,
+    rpl_ext_header_remove,
+    rpl_ext_header_update,
+    rpl_ext_header_hbh_update,
+    rpl_ext_header_srh_update,
+    rpl_ext_header_srh_get_next_hop,
+    rpl_link_callback,
+    rpl_ipv6_neighbor_callback,
+    drop_route,
+    rpl_is_in_leaf_mode,
 };
 /*---------------------------------------------------------------------------*/
 

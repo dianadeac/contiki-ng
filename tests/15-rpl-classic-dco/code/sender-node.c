@@ -41,12 +41,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define UDP_PORT 1234
+#define RECEIVE_PORT 1234
+#define SEND_PORT 4321
 
-#define SEND_INTERVAL		(60 * CLOCK_SECOND)
-#define SEND_TIME		(random_rand() % (SEND_INTERVAL))
+#define SEND_INTERVAL		(20 * CLOCK_SECOND)
 
-static struct simple_udp_connection unicast_connection;
+static struct simple_udp_connection receive_connection;
+static struct simple_udp_connection send_connection;
 
 /*---------------------------------------------------------------------------*/
 PROCESS(sender_node_process, "Sender node process");
@@ -90,48 +91,100 @@ set_global_address(void)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(sender_node_process, ev, data)
 {
-  static struct etimer periodic_timer;
+  // static struct etimer periodic_timer;
   static struct etimer send_timer;
   uip_ipaddr_t addr;
-  const uip_ipaddr_t *default_prefix;
+  // const uip_ipaddr_t *default_prefix;
+  static int address_selection = 0;
 
   PROCESS_BEGIN();
 
   set_global_address();
 
-  simple_udp_register(&unicast_connection, UDP_PORT,
-                      NULL, UDP_PORT, receiver);
+  // simple_udp_register(&unicast_connection, UDP_PORT,
+  //                     NULL, UDP_PORT, receiver);
 
-  etimer_set(&periodic_timer, SEND_INTERVAL);
+  // etimer_set(&periodic_timer, SEND_INTERVAL);
+  // while(1) {
+
+  //   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+  //   etimer_reset(&periodic_timer);
+  //   etimer_set(&send_timer, SEND_TIME);
+
+  //   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
+
+  //   default_prefix = uip_ds6_default_prefix();
+  //   uip_ip6addr_copy(&addr, default_prefix);
+
+  //   addr.u16[4] = UIP_HTONS(0x0201);
+  //   addr.u16[5] = UIP_HTONS(0x0001);
+  //   addr.u16[6] = UIP_HTONS(0x0001);
+  //   addr.u16[7] = UIP_HTONS(0x0001);
+
+  //   {
+  //     static unsigned int message_number;
+  //       char buf[20];
+
+  //       printf("Node;Sending;");
+  //       uip_debug_ipaddr_print(&addr);
+  //       printf(";%d\n",message_number);
+  //       sprintf(buf, "%d", message_number);
+  //       message_number++;
+  //       simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, &addr);
+  //   }
+  // }
+
+
+  simple_udp_register(&receive_connection, RECEIVE_PORT,
+                      NULL, RECEIVE_PORT, receiver);
+  simple_udp_register(&send_connection, SEND_PORT,
+                      NULL, SEND_PORT, receiver);
+
+  etimer_set(&send_timer, SEND_INTERVAL);
   while(1) {
 
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    etimer_reset(&periodic_timer);
-    etimer_set(&send_timer, SEND_TIME);
+    PROCESS_YIELD();
 
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
+    if(ev == PROCESS_EVENT_TIMER && etimer_expired(&send_timer)) {
 
-    default_prefix = uip_ds6_default_prefix();
-    uip_ip6addr_copy(&addr, default_prefix);
+      uip_ip6addr_copy(&addr, uip_ds6_default_prefix());
 
-    addr.u16[4] = UIP_HTONS(0x0201);
-    addr.u16[5] = UIP_HTONS(0x0001);
-    addr.u16[6] = UIP_HTONS(0x0001);
-    addr.u16[7] = UIP_HTONS(0x0001);
+      if (address_selection %3 == 0) {
+        addr.u16[4] = UIP_HTONS(0x0207);
+        addr.u16[5] = UIP_HTONS(0x0007);
+        addr.u16[6] = UIP_HTONS(0x0007);
+        addr.u16[7] = UIP_HTONS(0x0007);
+      }
+      if (address_selection %3 == 1) {
+        addr.u16[4] = UIP_HTONS(0x0208);
+        addr.u16[5] = UIP_HTONS(0x0008);
+        addr.u16[6] = UIP_HTONS(0x0008);
+        addr.u16[7] = UIP_HTONS(0x0008);
+      }
+      if (address_selection %3 == 2) {
+        addr.u16[4] = UIP_HTONS(0x0209);
+        addr.u16[5] = UIP_HTONS(0x0009);
+        addr.u16[6] = UIP_HTONS(0x0009);
+        addr.u16[7] = UIP_HTONS(0x0009);
+      }
 
-    {
-      static unsigned int message_number;
-      char buf[20];
+      {
+        static unsigned int message_number;
+        char buf[20];
 
-      printf("Sending unicast to ");
-      uip_debug_ipaddr_print(&addr);
-      printf("\n");
-      sprintf(buf, "Message %d", message_number);
-      message_number++;
-      simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, &addr);
+        printf("Node;Sending;");
+        uip_debug_ipaddr_print(&addr);
+        printf(";%d\n", message_number);
+        sprintf(buf, "%d", message_number);
+        message_number++;
+        address_selection= address_selection + 1;
+        simple_udp_sendto(&send_connection, buf, strlen(buf) + 1, &addr);
+      }
+
+
     }
+    etimer_reset(&send_timer);
   }
-
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
