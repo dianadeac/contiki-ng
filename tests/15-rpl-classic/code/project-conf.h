@@ -29,20 +29,22 @@
 #define TCPIP_CONF_ANNOTATE_TRANSMISSIONS 1
 
 
-#define LOG_CONF_LEVEL_RPL          LOG_LEVEL_DBG
-#define LOG_CONF_LEVEL_APP          LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_MAC          LOG_LEVEL_DBG
+ #define LOG_CONF_LEVEL_RPL          LOG_LEVEL_DBG
+// #define LOG_CONF_LEVEL_APP          LOG_LEVEL_DBG
+#define LOG_CONF_LEVEL_MAC          LOG_LEVEL_INFO
 // #define LOG_CONF_LEVEL_TCPIP        LOG_LEVEL_DBG
 // #define LOG_CONF_LEVEL_6LOWPAN      LOG_LEVEL_DBG
 
+#define ENERGEST_CONF_ON 1
 
-//#define TSCH_CONF_AUTOSELECT_TIME_SOURCE 1
-
-//#define RPL_CONF_MOP        RPL_MOP_NO_DOWNWARD_ROUTES 
+//#define RPL_CONF_MOP        RPL_MOP_NO_DOWNWARD_ROUTES
 //#define RPL_CONF_MOP      RPL_MOP_STORING_NO_MULTICAST
-#define RPL_CONF_MOP      RPL_MOP_NON_STORING      
-   
+#define RPL_CONF_MOP      RPL_MOP_NON_STORING
+
 #define RPL_CONF_WITH_DAO_ACK 1
+
+#define IEEE802154_CONF_PANID 0xabcd
+
 
 //Change objective function
 // #define RPL_CONF_SUPPORTED_OFS      {&rpl_of0, &rpl_mrhof}
@@ -50,13 +52,4 @@
 
 //Probing = unicast control messages sent once a minute
 #define RPL_CONF_WITH_PROBING       0
-
-//#define RPL_CONF_DIO_INTERVAL_MIN   5
-
-
-
-
-// Changing Hop Limit
-//#define UIP_CONF_TTL 3
-
 
