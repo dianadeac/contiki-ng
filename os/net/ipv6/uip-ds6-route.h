@@ -158,10 +158,11 @@ typedef struct rpl_route_entry {
   uint8_t dao_seqno_out;
   uint8_t dao_seqno_in;
   uint8_t state_flags;
+  uint8_t path_seqno;
 } rpl_route_entry_t;
 #endif /* UIP_DS6_ROUTE_STATE_TYPE */
 
-/** \brief The neighbor routes hold a list of routing table entries
+/** \brief The neighbor routes hold a list of routing table ent ries
     that are attached to a specific neihbor. */
 struct uip_ds6_route_neighbor_routes {
   LIST_STRUCT(route_list);

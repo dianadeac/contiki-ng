@@ -741,7 +741,9 @@ void rpl_free_dag(rpl_dag_t *dag)
 #if RPL_WITH_DAO_ACK
     ctimer_stop(&dag->instance->dao_retransmit_timer);
 #endif /* RPL_WITH_DAO_ACK */
-
+#if RPL_WITH_DCO_ACK
+    ctimer_stop(&dag->instance->dco_retransmit_timer);
+#endif /* RPL_WITH_DCO_ACK */
     /* Remove autoconfigured address. */
     if ((dag->prefix_info.flags & UIP_ND6_RA_FLAG_AUTONOMOUS))
     {
@@ -1514,7 +1516,9 @@ void rpl_local_repair(rpl_instance_t *instance)
 #if RPL_WITH_DAO_ACK
   ctimer_stop(&instance->dao_retransmit_timer);
 #endif /* RPL_WITH_DAO_ACK */
-
+#if RPL_WITH_DCO_ACK
+  ctimer_stop(&instance->dco_retransmit_timer);
+#endif /* RPL_WITH_DCO_ACK */
   rpl_reset_dio_timer(instance);
   if (RPL_IS_STORING(instance))
   {

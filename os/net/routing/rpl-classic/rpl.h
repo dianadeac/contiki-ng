@@ -241,6 +241,14 @@ struct rpl_instance {
   /* My last registered DAO that I might be waiting for an ACK on. */
   uint8_t my_dao_seqno;
   uint8_t my_dao_transmissions;
+  /* My last registered DCO that I might be waiting for an ACK on. */
+  #if RPL_WITH_DCO_ACK
+  uint8_t my_dco_seqno;
+  uint8_t my_dco_transmissions;
+  uip_ipaddr_t my_dco_target;
+  uip_ds6_route_t my_dco_route;
+  rpl_dag_t my_dco_dag;
+  #endif /* RPL_WITH_DCO_ACK */
   /* this is intended to keep track if this instance have a route downward */
   uint8_t has_downward_route;
   rpl_rank_t max_rankinc;
@@ -265,6 +273,9 @@ struct rpl_instance {
 #if RPL_WITH_DAO_ACK
   struct ctimer dao_retransmit_timer;
 #endif /* RPL_WITH_DAO_ACK */
+#if RPL_WITH_DCO_ACK
+  struct ctimer dco_retransmit_timer;
+#endif
   struct ctimer unicast_dao_timer;
   rpl_parent_t *unicast_dao_target;
   uip_ipaddr_t *unicast_dao_prefix;

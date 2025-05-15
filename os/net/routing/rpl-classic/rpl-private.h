@@ -152,6 +152,22 @@
 #define RPL_DAO_RETRANSMISSION_TIMEOUT  (5 * CLOCK_SECOND)
 #endif /* RPL_CONF_DAO_RETRANSMISSION_TIMEOUT */
 
+/*
+* RFC9009: If latency limits are not known a DCO is retrasmitted a max
+* of 3 times every 3s.
+*/
+#ifdef RPL_CONF_DCO_MAX_RETRANSMISSIONS
+#define RPL_DCO_MAX_RETRANSMISSIONS RPL_CONF_DCO_MAX_RETRANSMISSIONS
+#else
+#define RPL_DCO_MAX_RETRANSMISSIONS     3
+#endif /* RPL_CONF_DCO_MAX_RETRANSMISSIONS */
+
+#ifdef RPL_CONF_DCO_RETRANSIMISSION_TIMEOUT
+#define RPL_DCO_RETRANSMISSION_TIMEOUT RPL_CONF_DCO_RETRANSMISSION_TIMEOUT
+#else
+#define RPL_DCO_RETRANSMISSION_TIMEOUT  (3 * CLOCK_SECOND)
+#endif /* RPL_CONF_DCO_RETRANSMISSION_TIMEOUT */
+
 /* Special value indicating immediate removal. */
 #define RPL_ZERO_LIFETIME               0
 
@@ -315,6 +331,8 @@ int compare_ipv6_no_prefix(const uip_ipaddr_t *addr1, const uip_ipaddr_t *addr2)
 void remove_routes_with_next_hop(const uip_ipaddr_t *target_next_hop);
 
 void dao_ack_output(rpl_instance_t *, uip_ipaddr_t *, uint8_t, uint8_t);
+
+void dco_output(rpl_dag_t *dag, uip_ipaddr_t *target, uip_ds6_route_t *route);
 void dco_ack_output(rpl_instance_t *, uip_ipaddr_t *, uint8_t, uint8_t);
 
 void rpl_icmp6_register_handlers(void);

@@ -747,6 +747,7 @@ dao_input_storing(void)
   rpl_parent_t *parent;
   uip_ds6_nbr_t *nbr;
   int is_root;
+  uint8_t path_seqno;
 
 #if RPL_WITH_DCO_ROUTE_INVALIDATION
   uint8_t i_flag;
@@ -910,14 +911,16 @@ dao_input_storing(void)
         if (route != NULL)
         {
           LOG_DBG("A DCO needs to be issued \n");
+
           RPL_LOLLIPOP_INCREMENT(dco_sequence);
 
           /* Sending a DCO with target learned from DAO. */
-          dco_output_target(dag, &prefix, route, dco_sequence);
+          dco_output(dag, &prefix, route);
         }
       }
 #endif
-
+      path_seqno = buffer[i + 4];
+      LOG_DBG("Transit option with path sequence %u\n", path_seqno);
       lifetime = buffer[i + 5];
       LOG_DBG("Transit option with lifetime %u\n", lifetime);
       /* The parent address is also ignored. */
@@ -1032,6 +1035,7 @@ dao_input_storing(void)
 
   /* Set the lifetime and clear the NOPATH bit. */
   rep->state.lifetime = RPL_LIFETIME(instance, lifetime);
+  rep->state.path_seqno = path_seqno;
   RPL_ROUTE_CLEAR_NOPATH_RECEIVED(rep);
 
 #if RPL_WITH_MULTICAST
@@ -1952,6 +1956,88 @@ uip_ds6_route_t *check_route(rpl_dag_t *dag, uip_ipaddr_t *target, uint8_t prefi
   return NULL;
 }
 /*---------------------------------------------------------------------------*/
+#if RPL_WITH_DCO_ACK
+static void
+handle_dco_retransmission(void *ptr)
+{
+
+
+  rpl_instance_t *instance;
+  uip_ipaddr_t target;
+  uip_ds6_route_t route;
+  rpl_dag_t dag;
+
+  instance = ptr;
+
+  LOG_INFO("The DCO retransmit timer expired: DCO retransmission \n");
+  LOG_INFO("INSTANCE: %d \n", instance->instance_id);
+  LOG_INFO("TRANS: %d \n", instance->my_dco_transmissions);
+  target = instance->my_dco_target;
+  route = instance->my_dco_route;
+  dag = instance->my_dco_dag;
+
+  LOG_INFO_("DCO target ");
+  LOG_INFO_6ADDR(&target);
+  LOG_INFO_("\n");
+
+  if (instance->my_dco_transmissions >= RPL_DCO_MAX_RETRANSMISSIONS)
+  {
+    /* No more retransmissions - give up. */
+    LOG_WARN("DCO max retransmissions reached — giving up\n");
+
+    return;
+  }
+
+  LOG_INFO("will retransmit DCO - seq:%d trans:%d\n", instance->my_dco_seqno,
+           instance->my_dco_transmissions);
+
+
+  ctimer_set(&instance->dco_retransmit_timer,
+             RPL_DCO_RETRANSMISSION_TIMEOUT / 2 +
+                 (random_rand() % (RPL_DCO_RETRANSMISSION_TIMEOUT / 2)),
+             handle_dco_retransmission, instance);
+
+  instance->my_dco_transmissions++;
+  dco_output_target(&dag, &target, &route, instance->my_dco_seqno);
+
+}
+#endif /* RPL_WITH_DCO_ACK */
+/*---------------------------------------------------------------------------*/
+void dco_output(rpl_dag_t *dag, uip_ipaddr_t *target, uip_ds6_route_t *route)
+{
+  if (dag == NULL)
+  {
+    LOG_ERR("dco_output error dag NULL\n");
+    return;
+  }
+
+ RPL_LOLLIPOP_INCREMENT(dco_sequence);
+ #if RPL_WITH_DCO_ACK
+
+
+    rpl_instance_t *instance;
+    instance = dag->instance;
+    LOG_INFO("DCO target before ");
+    LOG_INFO_6ADDR( &(instance->my_dco_target));
+    LOG_INFO("\n");
+    instance->my_dco_seqno = dco_sequence;
+    instance->my_dco_transmissions = 1;
+    instance->my_dco_target = *target;
+    instance->my_dco_route = *route;
+    instance->my_dco_dag = *dag;
+    LOG_INFO("DCO target ");
+    LOG_INFO_6ADDR( &(instance->my_dco_target));
+    LOG_INFO("\n");
+
+    ctimer_set(&instance->dco_retransmit_timer, RPL_DCO_RETRANSMISSION_TIMEOUT,
+               handle_dco_retransmission, instance);
+#endif /* RPL_WITH_DCO_ACK */
+  LOG_INFO("Sending a first DCO \n");
+  LOG_INFO("INSTANCE: %d \n", instance->instance_id);
+  dco_output_target(dag, target, route, dco_sequence);
+  }
+
+/*---------------------------------------------------------------------------*/
 static void dco_output_target(rpl_dag_t *dag, uip_ipaddr_t *target,
                               uip_ds6_route_t *route, uint8_t seq_no)
 {
@@ -2039,12 +2125,38 @@ static void dco_output_target(rpl_dag_t *dag, uip_ipaddr_t *target,
 static void
 dco_ack_input()
 {
+#if RPL_WITH_DCO_ACK
+  uint8_t *buffer;
+  uint8_t instance_id;
+  uint8_t sequence;
+  //uint8_t status;
+  rpl_instance_t *instance;
+
+  buffer = UIP_ICMP_PAYLOAD;
+  instance_id = buffer[0];
+  sequence = buffer[3];
+  //status = buffer[2];
+
+  instance = rpl_get_instance(instance_id);
+  if (instance == NULL)
+  {
+    uipbuf_clear();
+    return;
+  }
+
   /* Destination Cleanup Object Acknowledgement*/
   LOG_INFO("Received a DCO ACK from ");
   LOG_INFO_6ADDR(&UIP_IP_BUF->srcipaddr);
   LOG_INFO_("\n");
 
+  if (sequence == instance->my_dco_seqno)
+  {
+    /*Always stop the restransmit timer when the ACK arrived*/
+    //ctimer_stop(&instance->dco_retransmit_timer);
+
+  }
   uipbuf_clear();
+#endif /* RPL_WITH_DCO_ACK */
 }
 /*---------------------------------------------------------------------------*/
 void dco_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence,

@@ -48,6 +48,12 @@
 
 #define SEND_INTERVAL		(20 * CLOCK_SECOND)
 
+/* Start sending messages START_DELAY secs after we start so that routing can
+ * converge */
+#define START_DELAY 500
+
+#define ITERATIONS 180
+
 
 static struct simple_udp_connection receive_connection;
 static struct simple_udp_connection send_connection;
@@ -78,6 +84,8 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   static int address_selection = 0;
 
+  static unsigned int message_number;
+
   PROCESS_BEGIN();
 
   NETSTACK_ROUTING.root_start();
@@ -87,50 +95,92 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
   simple_udp_register(&send_connection, SEND_PORT,
                       NULL, SEND_PORT, receiver);
 
-  etimer_set(&send_timer, SEND_INTERVAL);
+  etimer_set(&send_timer, START_DELAY*CLOCK_SECOND);
+
   while(1) {
 
     PROCESS_YIELD();
+    if(etimer_expired(&send_timer)) {
+      if(message_number == ITERATIONS) {
+        etimer_stop(&send_timer);
+      } else {
+        uip_ip6addr_copy(&addr, uip_ds6_default_prefix());
 
-    if(ev == PROCESS_EVENT_TIMER && etimer_expired(&send_timer)) {
+        if (address_selection %3 == 0) {
+          addr.u16[4] = UIP_HTONS(0x0207);
+          addr.u16[5] = UIP_HTONS(0x0007);
+          addr.u16[6] = UIP_HTONS(0x0007);
+          addr.u16[7] = UIP_HTONS(0x0007);
+        }
+        if (address_selection %3 == 1) {
+          addr.u16[4] = UIP_HTONS(0x0208);
+          addr.u16[5] = UIP_HTONS(0x0008);
+          addr.u16[6] = UIP_HTONS(0x0008);
+          addr.u16[7] = UIP_HTONS(0x0008);
+        }
+        if (address_selection %3 == 2) {
+          addr.u16[4] = UIP_HTONS(0x0209);
+          addr.u16[5] = UIP_HTONS(0x0009);
+          addr.u16[6] = UIP_HTONS(0x0009);
+          addr.u16[7] = UIP_HTONS(0x0009);
+        }
 
-      uip_ip6addr_copy(&addr, uip_ds6_default_prefix());
+        {
 
-      if (address_selection %3 == 0) {
-        addr.u16[4] = UIP_HTONS(0x0207);
-        addr.u16[5] = UIP_HTONS(0x0007);
-        addr.u16[6] = UIP_HTONS(0x0007);
-        addr.u16[7] = UIP_HTONS(0x0007);
+          char buf[20];
+
+          printf("Root;Sending;");
+          uip_debug_ipaddr_print(&addr);
+          printf(";%d\n", message_number);
+          sprintf(buf, "%d", message_number);
+          message_number++;
+          address_selection= address_selection + 1;
+          simple_udp_sendto(&send_connection, buf, strlen(buf) + 1, &addr);
+        }
+
+        etimer_set(&send_timer, SEND_INTERVAL);
       }
-      if (address_selection %3 == 1) {
-        addr.u16[4] = UIP_HTONS(0x0208);
-        addr.u16[5] = UIP_HTONS(0x0008);
-        addr.u16[6] = UIP_HTONS(0x0008);
-        addr.u16[7] = UIP_HTONS(0x0008);
-      }
-      if (address_selection %3 == 2) {
-        addr.u16[4] = UIP_HTONS(0x0209);
-        addr.u16[5] = UIP_HTONS(0x0009);
-        addr.u16[6] = UIP_HTONS(0x0009);
-        addr.u16[7] = UIP_HTONS(0x0009);
-      }
-
-      {
-        static unsigned int message_number;
-        char buf[20];
-
-        printf("Root;Sending;");
-        uip_debug_ipaddr_print(&addr);
-        printf(";%d\n", message_number);
-        sprintf(buf, "%d", message_number);
-        message_number++;
-        address_selection= address_selection + 1;
-        simple_udp_sendto(&send_connection, buf, strlen(buf) + 1, &addr);
-      }
-
-
     }
-    etimer_reset(&send_timer);
+
+    // if(ev == PROCESS_EVENT_TIMER && etimer_expired(&send_timer)) {
+
+    //   uip_ip6addr_copy(&addr, uip_ds6_default_prefix());
+
+    //   if (address_selection %3 == 0) {
+    //     addr.u16[4] = UIP_HTONS(0x0207);
+    //     addr.u16[5] = UIP_HTONS(0x0007);
+    //     addr.u16[6] = UIP_HTONS(0x0007);
+    //     addr.u16[7] = UIP_HTONS(0x0007);
+    //   }
+    //   if (address_selection %3 == 1) {
+    //     addr.u16[4] = UIP_HTONS(0x0208);
+    //     addr.u16[5] = UIP_HTONS(0x0008);
+    //     addr.u16[6] = UIP_HTONS(0x0008);
+    //     addr.u16[7] = UIP_HTONS(0x0008);
+    //   }
+    //   if (address_selection %3 == 2) {
+    //     addr.u16[4] = UIP_HTONS(0x0209);
+    //     addr.u16[5] = UIP_HTONS(0x0009);
+    //     addr.u16[6] = UIP_HTONS(0x0009);
+    //     addr.u16[7] = UIP_HTONS(0x0009);
+    //   }
+
+    //   {
+    //     static unsigned int message_number;
+    //     char buf[20];
+
+    //     printf("Root;Sending;");
+    //     uip_debug_ipaddr_print(&addr);
+    //     printf(";%d\n", message_number);
+    //     sprintf(buf, "%d", message_number);
+    //     message_number++;
+    //     address_selection= address_selection + 1;
+    //     simple_udp_sendto(&send_connection, buf, strlen(buf) + 1, &addr);
+    //   }
+
+
+    // }
+    // etimer_reset(&send_timer);
 
   }
 
