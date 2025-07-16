@@ -85,11 +85,9 @@ PROCESS_THREAD(ctimer_process, ev, data)
 void
 ctimer_init(void)
 {
-  initialized = false;
   list_init(ctimer_list);
   process_start(&ctimer_process, NULL);
 }
-/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void
 ctimer_set_with_process(struct ctimer *c, clock_time_t t,
@@ -123,6 +121,20 @@ ctimer_reset(struct ctimer *c)
 }
 /*---------------------------------------------------------------------------*/
 void
+ctimer_reset_with_new_interval(struct ctimer *c, clock_time_t interval)
+{
+  if(initialized) {
+    PROCESS_CONTEXT_BEGIN(&ctimer_process);
+    etimer_reset_with_new_interval(&c->etimer, interval);
+    PROCESS_CONTEXT_END(&ctimer_process);
+  } else {
+    c->etimer.timer.interval = interval;
+  }
+
+  list_add(ctimer_list, c);
+}
+/*---------------------------------------------------------------------------*/
+void
 ctimer_restart(struct ctimer *c)
 {
   if(initialized) {
@@ -149,16 +161,10 @@ ctimer_stop(struct ctimer *c)
 bool
 ctimer_expired(struct ctimer *c)
 {
-  struct ctimer *t;
   if(initialized) {
     return etimer_expired(&c->etimer);
   }
-  for(t = list_head(ctimer_list); t != NULL; t = t->next) {
-    if(t == c) {
-      return false;
-    }
-  }
-  return true;
+  return !list_contains(ctimer_list, c);
 }
 /*---------------------------------------------------------------------------*/
 /** @} */

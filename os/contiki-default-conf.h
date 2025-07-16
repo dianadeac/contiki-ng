@@ -58,6 +58,14 @@
 #ifndef QUEUEBUF_CONF_NUM
 #define QUEUEBUF_CONF_NUM 8
 #endif /* QUEUEBUF_CONF_NUM */
+
+/* Enable 802.15.4g payload bit-reversal (LSB⇄MSB) on TX/RX */
+#ifdef RADIO_CONF_PAYLOAD_BIT_REVERSE
+#define RADIO_PAYLOAD_BIT_REVERSE RADIO_CONF_PAYLOAD_BIT_REVERSE
+#else
+#define RADIO_PAYLOAD_BIT_REVERSE 0
+#endif
+
 /*---------------------------------------------------------------------------*/
 /* uIPv6 configuration options.
  *
@@ -107,9 +115,9 @@
 #define NBR_TABLE_CONF_CAN_ACCEPT_NEW          rpl_nbr_can_accept_new
 #endif /* NBR_TABLE_CONF_CAN_ACCEPT_NEW */
 /* Leave 3 spots for candidate parents incl. default route. */
-#if RPL_NBR_POLICY_MAX_NEXTHOP_NEIGHBORS
-#define RPL_NBR_POLICY_MAX_NEXTHOP_NEIGHBORS  MAX(NBR_TABLE_CONF_MAX_NEIGHBORS - 3, 0)
-#endif /* RPL_NBR_POLICY_MAX_NEXTHOP_NEIGHBORS */
+#ifndef RPL_NBR_POLICY_CONF_MAX_NEXTHOP_NEIGHBORS
+#define RPL_NBR_POLICY_CONF_MAX_NEXTHOP_NEIGHBORS  MAX(NBR_TABLE_CONF_MAX_NEIGHBORS - 3, 0)
+#endif /* RPL_NBR_POLICY_CONF_MAX_NEXTHOP_NEIGHBORS */
 #endif /* ROUTING_CONF_RPL_CLASSIC */
 #endif /* UIP_CONF_IPV6_RPL */
 

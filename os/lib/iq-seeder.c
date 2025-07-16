@@ -48,14 +48,15 @@
 #define COLUMN_COUNT  50
 #define ROW_COUNT     16
 
-static const uint8_t toeplitz[COLUMN_COUNT + ROW_COUNT - 1] =
-    {  93 ,  50 , 210 , 134 ,  79 ,  52 , 237 , 192 ,  40 , 201 ,
-        3 , 184 , 152 ,  74 ,  27 ,  28 ,  32 , 111 ,  79 , 222 ,
-      174 ,  51 , 223 ,  66 , 152 , 211 , 234 , 124 ,  92 ,  64 ,
-      206 , 169 , 227 , 155 , 106 ,  87 , 207 , 135 , 238 , 101 ,
-      254 , 163 ,  55 ,  76 ,  50 ,  40 ,   4 , 149 ,  27 ,   1 ,
-      127 , 159 , 160 ,  91 , 251 , 179 , 186 , 200 , 225 ,  47 ,
-      235 , 223 ,  39 , 117 ,  19 };
+static const uint8_t toeplitz[COLUMN_COUNT + ROW_COUNT - 1] = {
+  93,  50, 210, 134,  79,  52, 237, 192,  40, 201,
+  3, 184, 152,  74,  27,  28,  32, 111,  79, 222,
+  174,  51, 223,  66, 152, 211, 234, 124,  92,  64,
+  206, 169, 227, 155, 106,  87, 207, 135, 238, 101,
+  254, 163,  55,  76,  50,  40,   4, 149,  27,   1,
+  127, 159, 160,  91, 251, 179, 186, 200, 225,  47,
+  235, 223,  39, 117,  19
+};
 
 /*---------------------------------------------------------------------------*/
 static uint8_t
@@ -109,7 +110,7 @@ extract(uint8_t *target, uint8_t *source)
   }
 }
 /*---------------------------------------------------------------------------*/
-static void
+static bool
 seed_16_bytes(uint8_t *result)
 {
   uint8_t bit_pos;
@@ -122,9 +123,14 @@ seed_16_bytes(uint8_t *result)
   byte_pos = 0;
   memset(accumulator, 0, COLUMN_COUNT);
 
-  NETSTACK_RADIO.on();
+  if(!NETSTACK_RADIO.on()) {
+    return false;
+  }
   for(iq_count = 0; iq_count < (COLUMN_COUNT * 8 / 2); iq_count++) {
-    NETSTACK_RADIO.get_value(RADIO_PARAM_IQ_LSBS, &iq);
+    if(NETSTACK_RADIO.get_value(RADIO_PARAM_IQ_LSBS, &iq) != RADIO_RESULT_OK) {
+      NETSTACK_RADIO.off();
+      return false;
+    }
 
     /* append I/Q LSBs to accumulator */
     accumulator[byte_pos] |= iq << bit_pos;
@@ -136,16 +142,19 @@ seed_16_bytes(uint8_t *result)
   }
   NETSTACK_RADIO.off();
   extract(result, accumulator);
+  return true;
 }
 /*---------------------------------------------------------------------------*/
-void
+bool
 iq_seeder_seed(void)
 {
   struct csprng_seed seed;
 
-  seed_16_bytes(seed.key);
-  seed_16_bytes(seed.state);
+  if(!seed_16_bytes(seed.key) || !seed_16_bytes(seed.state)) {
+    return false;
+  }
   csprng_feed(&seed);
+  return true;
 }
 /*---------------------------------------------------------------------------*/
 
