@@ -115,8 +115,10 @@ extern int curr_log_level_mac;
 extern int curr_log_level_framer;
 extern int curr_log_level_6top;
 extern int curr_log_level_coap;
+extern int curr_log_level_dtls;
 extern int curr_log_level_snmp;
 extern int curr_log_level_lwm2m;
+extern int curr_log_level_sys;
 extern int curr_log_level_main;
 
 extern struct log_module all_modules[];
@@ -130,8 +132,10 @@ extern struct log_module all_modules[];
 #define LOG_LEVEL_FRAMER                      MIN((LOG_CONF_LEVEL_FRAMER), curr_log_level_framer)
 #define LOG_LEVEL_6TOP                        MIN((LOG_CONF_LEVEL_6TOP), curr_log_level_6top)
 #define LOG_LEVEL_COAP                        MIN((LOG_CONF_LEVEL_COAP), curr_log_level_coap)
+#define LOG_LEVEL_DTLS                        MIN((LOG_CONF_LEVEL_DTLS), curr_log_level_dtls)
 #define LOG_LEVEL_SNMP                        MIN((LOG_CONF_LEVEL_SNMP), curr_log_level_snmp)
 #define LOG_LEVEL_LWM2M                       MIN((LOG_CONF_LEVEL_LWM2M), curr_log_level_lwm2m)
+#define LOG_LEVEL_SYS                         MIN((LOG_CONF_LEVEL_SYS), curr_log_level_sys)
 #define LOG_LEVEL_MAIN                        MIN((LOG_CONF_LEVEL_MAIN), curr_log_level_main)
 
 /* Main log function */
@@ -191,6 +195,12 @@ extern struct log_module all_modules[];
                            } \
                          } while (0)
 
+#define LOG_STRING(level, data, length) do {  \
+                           if(level <= (LOG_LEVEL)) { \
+                             log_string(data, length); \
+                           } \
+                         } while (0)
+
 /* More compact versions of LOG macros */
 #define LOG_PRINT(...)         LOG(1, 0, "PRI", LOG_COLOR_PRI, __VA_ARGS__)
 #define LOG_ERR(...)           LOG(1, LOG_LEVEL_ERR, "ERR", LOG_COLOR_ERR, __VA_ARGS__)
@@ -221,6 +231,12 @@ extern struct log_module all_modules[];
 #define LOG_WARN_BYTES(data, length)    LOG_BYTES(LOG_LEVEL_WARN, data, length)
 #define LOG_INFO_BYTES(data, length)    LOG_BYTES(LOG_LEVEL_INFO, data, length)
 #define LOG_DBG_BYTES(data, length)     LOG_BYTES(LOG_LEVEL_DBG, data, length)
+
+#define LOG_PRINT_STRING(data, length)  LOG_STRING(0, data, length)
+#define LOG_ERR_STRING(data, length)    LOG_STRING(LOG_LEVEL_ERR, data, length)
+#define LOG_WARN_STRING(data, length)   LOG_STRING(LOG_LEVEL_WARN, data, length)
+#define LOG_INFO_STRING(data, length)   LOG_STRING(LOG_LEVEL_INFO, data, length)
+#define LOG_DBG_STRING(data, length)    LOG_STRING(LOG_LEVEL_DBG, data, length)
 
 /* For checking log level.
    As this builds on curr_log_level variables, this should not be used
@@ -278,6 +294,13 @@ void log_lladdr_compact(const linkaddr_t *lladdr);
  * \param length The length of the byte array
 */
 void log_bytes(const void *data, size_t length);
+
+/**
+ * Logs a string that has a length specified, but might not be zero-terminated.
+ * \param text The string
+ * \param length The max length of the string
+*/
+void log_string(const char *text, size_t length);
 
 /**
  * Sets a log level at run-time. Logs are included in the firmware via

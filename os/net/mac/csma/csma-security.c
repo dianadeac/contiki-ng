@@ -44,7 +44,7 @@
 
 #include "contiki.h"
 #include "net/mac/csma/csma.h"
-#include "net/mac/csma/anti-replay.h"
+#include "net/mac/anti-replay.h"
 #include "net/mac/csma/csma-security.h"
 #include "net/mac/framer/frame802154.h"
 #include "net/mac/framer/framer-802154.h"
@@ -55,7 +55,7 @@
 #include "lib/aes-128.h"
 #include <stdio.h>
 #include <string.h>
-#include "ccm-star-packetbuf.h"
+#include "net/mac/ccm-star-packetbuf.h"
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "CSMA"
@@ -66,8 +66,6 @@ static const char * HEX = "0123456789ABCDEF";
 #endif
 
 #if LLSEC802154_USES_AUX_HEADER && LLSEC802154_USES_FRAME_COUNTER
-
-#define MIC_LEN(level) LLSEC802154_MIC_LEN(level)
 
 #if LLSEC802154_USES_EXPLICIT_KEYS
 #define LLSEC_KEY_INDEX (FRAME802154_IMPLICIT_KEY == packetbuf_attr(PACKETBUF_ATTR_KEY_ID_MODE) \
@@ -111,7 +109,8 @@ aead(uint8_t hdrlen, int forward)
   uint8_t a_len;
   uint8_t *result;
   /* Allocate for MAX level */
-  uint8_t generated_mic[MIC_LEN(7)];
+  uint8_t generated_mic[LLSEC802154_MIC_LEN(
+                            FRAME802154_SECURITY_LEVEL_ENC_MIC_128)];
   uint8_t *mic;
   uint8_t key_index;
   aes_key_t *key;
@@ -149,20 +148,21 @@ aead(uint8_t hdrlen, int forward)
   CCM_STAR.aead(nonce,
       m, m_len,
       a, a_len,
-      result, MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07),
+      result, LLSEC802154_PACKETBUF_MIC_LEN(),
       forward);
 
   if(forward) {
-    packetbuf_set_datalen(packetbuf_datalen() + MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07));
+    packetbuf_set_datalen(packetbuf_datalen()
+                          + LLSEC802154_PACKETBUF_MIC_LEN());
     return 1;
   } else {
-    return (memcmp(generated_mic, mic, MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07)) == 0);
+    return memcmp(generated_mic, mic, LLSEC802154_PACKETBUF_MIC_LEN()) == 0;
   }
 }
 
 /*---------------------------------------------------------------------------*/
-int
-csma_security_create_frame(void)
+static int
+create(void)
 {
   int hdr_len;
 
@@ -172,7 +172,7 @@ csma_security_create_frame(void)
     anti_replay_set_counter();
   }
 
-  hdr_len = NETSTACK_FRAMER.create();
+  hdr_len = framer_802154.create();
   if(hdr_len < 0) {
     return hdr_len;
   }
@@ -216,23 +216,22 @@ csma_security_create_frame(void)
 }
 
 /*---------------------------------------------------------------------------*/
-int
-csma_security_frame_len(void)
+static int
+length(void)
 {
   if(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) > 0 &&
      LLSEC_KEY_INDEX != 0xffff) {
-    return NETSTACK_FRAMER.length() +
-      MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07);
+    return framer_802154.length() + LLSEC802154_PACKETBUF_MIC_LEN();
   }
-  return NETSTACK_FRAMER.length();
+  return framer_802154.length();
 }
 /*---------------------------------------------------------------------------*/
-int
-csma_security_parse_frame(void)
+static int
+parse(void)
 {
   int hdr_len;
 
-  hdr_len = NETSTACK_FRAMER.parse();
+  hdr_len = framer_802154.parse();
   if(hdr_len < 0) {
     return hdr_len;
   }
@@ -277,12 +276,12 @@ csma_security_parse_frame(void)
     return FRAMER_FAILED;
   }
 
-  if(packetbuf_datalen() <= MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07)) {
+  if(packetbuf_datalen() <= LLSEC802154_PACKETBUF_MIC_LEN()) {
     LOG_ERR("MIC error - too little data in frame!\n");
     return FRAMER_FAILED;
   }
 
-  packetbuf_set_datalen(packetbuf_datalen() - MIC_LEN(packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL) & 0x07));
+  packetbuf_set_datalen(packetbuf_datalen() - LLSEC802154_PACKETBUF_MIC_LEN());
   if(!aead(hdr_len, 0)) {
     LOG_INFO("received unauthentic frame %u from ",
              (unsigned int) anti_replay_get_counter());
@@ -295,20 +294,11 @@ csma_security_parse_frame(void)
   return hdr_len;
 }
 /*---------------------------------------------------------------------------*/
-#else
-/* The "unsecure" version of the create frame / parse frame */
-int
-csma_security_create_frame(void)
-{
-  packetbuf_set_attr(PACKETBUF_ATTR_FRAME_TYPE, FRAME802154_DATAFRAME);
-  return NETSTACK_FRAMER.create();
-}
-int
-csma_security_parse_frame(void)
-{
-  return NETSTACK_FRAMER.parse();
-}
-
+const struct framer csma_security_framer = {
+  length,
+  create,
+  parse,
+};
 #endif /* LLSEC802154_USES_AUX_HEADER && LLSEC802154_USES_FRAME_COUNTER */
 
 /** @} */

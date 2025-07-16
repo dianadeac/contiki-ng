@@ -78,6 +78,7 @@ dev/dht11/nrf52840:BOARD=dk \
 hello-world/nrf52840:BOARD=dk \
 hello-world/nrf52840:BOARD=dongle \
 hello-world/openmote:BOARD=openmote-b \
+hello-world/openmote:BOARD=openmote-b:DEFINES=OPENMOTEB_CONF_USE_ATMEL_RADIO=1 \
 hello-world/openmote:BOARD=openmote-cc2538 \
 hello-world/zoul:BOARD=firefly-reva:DEFINES=ZOUL_CONF_USE_CC1200_RADIO=1 \
 hello-world/zoul:BOARD=firefly-reva:DEFINES=ZOUL_CONF_USE_CC1200_RADIO=1,CC1200_CONF_802154G=1 \
@@ -108,6 +109,7 @@ hello-world/gecko:BOARD=brd4162a \
 hello-world/gecko:BOARD=brd4166a \
 libs/data-structures/zoul \
 libs/deployment/openmote \
+libs/ecc/zoul \
 libs/energest/zoul \
 libs/ipv6-hooks/openmote \
 libs/ipv6-uipbuf/zoul \
@@ -144,14 +146,13 @@ libs/timers/zoul \
 libs/trickle-library/zoul \
 libs/csprng/openmote \
 lwm2m-ipso-objects/zoul:DEFINES=LWM2M_Q_MODE_CONF_ENABLED=1,LWM2M_Q_MODE_CONF_INCLUDE_DYNAMIC_ADAPTATION=1\
-lwm2m-ipso-objects/zoul:MAKE_WITH_DTLS=1 \
+lwm2m-ipso-objects/nrf:BOARD=nrf52840/dongle:MAKE_WITH_DTLS=1:MAKE_COAP_DTLS_WITH_PSK=1:MAKE_COAP_DTLS_WITH_CLIENT=1:MAKE_COAP_DTLS_KEYSTORE=MAKE_COAP_DTLS_KEYSTORE_SIMPLE \
 mqtt-client/simplelink:BOARD=sensortag/cc2650:DEFINES=BOARD_CONF_SENSORS_DISABLE=1,TI_SPI_CONF_ENABLE=0 \
 mqtt-client/zoul:BOARD=firefly:DEFINES=MQTT_CONF_VERSION=5 \
 multicast/zoul \
 nullnet/zoul \
 platform-specific/cc2538-common/cc2538dk \
 platform-specific/cc2538-common/crypto/zoul \
-platform-specific/cc2538-common/pka/zoul \
 platform-specific/cc26x0-cc13x0/cc26x0-web-demo/cc26x0-cc13x0:BOARD=sensortag/cc2650 \
 platform-specific/cc26x0-cc13x0/cc26x0-web-demo/cc26x0-cc13x0:BOARD=sensortag/cc1350 \
 platform-specific/cc26x0-cc13x0/base-demo/cc26x0-cc13x0:BOARD=sensortag/cc2650 \

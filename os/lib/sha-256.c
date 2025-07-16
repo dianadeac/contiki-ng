@@ -25,16 +25,17 @@
  * SUCH DAMAGE.
  */
 
+/**
+ * \addtogroup crypto
+ * @{
+ * \file
+ * Software implementation of SHA-256.
+ */
+
 #include "lib/sha-256.h"
 #include "net/ipv6/uip.h"
 #include "sys/cc.h"
 #include <string.h>
-
-/* HMAC-related */
-struct data_chunk {
-  const uint8_t *data;
-  size_t data_len;
-};
 
 #if UIP_BYTE_ORDER != UIP_LITTLE_ENDIAN
 /* Copy a vector of big-endian uint32_t into a vector of bytes */
@@ -54,9 +55,9 @@ static uint32_t
 be32dec(uint8_t const *p)
 {
   return ((uint32_t)p[0] << 24)
-      | ((uint32_t)p[1] << 16)
-      | ((uint32_t)p[2] << 8)
-      | p[3];
+         | ((uint32_t)p[1] << 16)
+         | ((uint32_t)p[2] << 8)
+         | p[3];
 }
 
 static void
@@ -149,8 +150,10 @@ static const uint32_t K[64] = {
 
 /* Message schedule computation */
 #define MSCH(W, ii, i) \
-  W[i + ii + 16] = \
-      s1(W[i + ii + 14]) + W[i + ii + 9] + s0(W[i + ii + 1]) + W[i + ii]
+  W[i + ii + 16] = s1(W[i + ii + 14]) \
+                   + W[i + ii + 9] \
+                   + s0(W[i + ii + 1]) \
+                   + W[i + ii]
 
 static sha_256_checkpoint_t checkpoint;
 
@@ -235,7 +238,8 @@ sha_256_pad(void)
     memcpy(&checkpoint.buf[checkpoint.buf_len], PAD, 56 - checkpoint.buf_len);
   } else {
     /* Finish the current block and mix. */
-    memcpy(&checkpoint.buf[checkpoint.buf_len], PAD, SHA_256_BLOCK_SIZE - checkpoint.buf_len);
+    memcpy(&checkpoint.buf[checkpoint.buf_len], PAD,
+           SHA_256_BLOCK_SIZE - checkpoint.buf_len);
     transform(checkpoint.buf);
 
     /* The start of the final block is all zeroes. */
@@ -289,8 +293,8 @@ update(const uint8_t *data, size_t len)
 
   /* Finish the current block */
   memcpy(&checkpoint.buf[checkpoint.buf_len],
-      data,
-      SHA_256_BLOCK_SIZE - checkpoint.buf_len);
+         data,
+         SHA_256_BLOCK_SIZE - checkpoint.buf_len);
   transform(checkpoint.buf);
   data += SHA_256_BLOCK_SIZE - checkpoint.buf_len;
   len -= SHA_256_BLOCK_SIZE - checkpoint.buf_len;
@@ -322,7 +326,8 @@ finalize(uint8_t digest[static SHA_256_DIGEST_LENGTH])
   be32enc_vect(digest, checkpoint.state, SHA_256_DIGEST_LENGTH);
 
   /* Clear the context state */
-  memset(&checkpoint, 0, sizeof(checkpoint));
+  memset(&checkpoint.buf, 0, sizeof(checkpoint.buf));
+  memset(&checkpoint.state, 0, sizeof(checkpoint.state));
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -339,23 +344,19 @@ restore_checkpoint(const sha_256_checkpoint_t *cp)
 /*---------------------------------------------------------------------------*/
 void
 sha_256_hash(const uint8_t *data, size_t len,
-    uint8_t digest[static SHA_256_DIGEST_LENGTH])
+             uint8_t digest[static SHA_256_DIGEST_LENGTH])
 {
   SHA_256.init();
   SHA_256.update(data, len);
   SHA_256.finalize(digest);
 }
 /*---------------------------------------------------------------------------*/
-static void
-hmac_over_data_chunks(const uint8_t *key, size_t key_len,
-    struct data_chunk *chunks, uint_fast8_t chunks_count,
-    uint8_t hmac[static SHA_256_DIGEST_LENGTH])
+void
+sha_256_hmac_init(const uint8_t *key, size_t key_len)
 {
   uint8_t hashed_key[SHA_256_DIGEST_LENGTH];
   uint8_t ipad[SHA_256_BLOCK_SIZE];
-  uint8_t opad[SHA_256_BLOCK_SIZE];
   uint_fast8_t i;
-  uint_fast8_t j;
 
   if(key_len > SHA_256_BLOCK_SIZE) {
     SHA_256.hash(key, key_len, hashed_key);
@@ -364,54 +365,57 @@ hmac_over_data_chunks(const uint8_t *key, size_t key_len,
   }
   for(i = 0; i < key_len; i++) {
     ipad[i] = key[i] ^ 0x36;
-    opad[i] = key[i] ^ 0x5c;
+    checkpoint.opad[i] = key[i] ^ 0x5c;
   }
   for(; i < SHA_256_BLOCK_SIZE; i++) {
     ipad[i] = 0x36;
-    opad[i] = 0x5c;
+    checkpoint.opad[i] = 0x5c;
   }
 
   SHA_256.init();
-  SHA_256.update(ipad, SHA_256_BLOCK_SIZE);
-  for(j = 0; j < chunks_count; j++) {
-    if(chunks[j].data && chunks[j].data_len) {
-      SHA_256.update(chunks[j].data, chunks[j].data_len);
-    }
-  }
+  SHA_256.update(ipad, sizeof(ipad));
+}
+/*---------------------------------------------------------------------------*/
+void
+sha_256_hmac_update(const uint8_t *data, size_t data_len)
+{
+  SHA_256.update(data, data_len);
+}
+/*---------------------------------------------------------------------------*/
+void
+sha_256_hmac_finish(uint8_t hmac[SHA_256_DIGEST_LENGTH])
+{
   SHA_256.finalize(hmac);
-
   SHA_256.init();
-  SHA_256.update(opad, SHA_256_BLOCK_SIZE);
+  SHA_256.update(checkpoint.opad, sizeof(checkpoint.opad));
   SHA_256.update(hmac, SHA_256_DIGEST_LENGTH);
   SHA_256.finalize(hmac);
+  memset(&checkpoint.opad, 0, sizeof(checkpoint.opad));
 }
 /*---------------------------------------------------------------------------*/
 void
 sha_256_hmac(const uint8_t *key, size_t key_len,
-    const uint8_t *data, size_t data_len,
-    uint8_t hmac[static SHA_256_DIGEST_LENGTH])
+             const uint8_t *data, size_t data_len,
+             uint8_t hmac[static SHA_256_DIGEST_LENGTH])
 {
-  struct data_chunk chunk;
-
-  chunk.data = data;
-  chunk.data_len = data_len;
-  hmac_over_data_chunks(key, key_len, &chunk, 1, hmac);
+  sha_256_hmac_init(key, key_len);
+  sha_256_hmac_update(data, data_len);
+  sha_256_hmac_finish(hmac);
 }
 /*---------------------------------------------------------------------------*/
 void
 sha_256_hkdf_extract(const uint8_t *salt, size_t salt_len,
-    const uint8_t *ikm, size_t ikm_len,
-    uint8_t prk[static SHA_256_DIGEST_LENGTH])
+                     const uint8_t *ikm, size_t ikm_len,
+                     uint8_t prk[static SHA_256_DIGEST_LENGTH])
 {
   sha_256_hmac(salt, salt_len, ikm, ikm_len, prk);
 }
 /*---------------------------------------------------------------------------*/
 void
 sha_256_hkdf_expand(const uint8_t *prk, size_t prk_len,
-    const uint8_t *info, size_t info_len,
-    uint8_t *okm, uint_fast16_t okm_len)
+                    const uint8_t *info, size_t info_len,
+                    uint8_t *okm, uint_fast16_t okm_len)
 {
-  struct data_chunk chunks[3];
   uint_fast8_t n;
   uint8_t i;
   uint8_t t_i[SHA_256_DIGEST_LENGTH];
@@ -420,29 +424,26 @@ sha_256_hkdf_expand(const uint8_t *prk, size_t prk_len,
   n = okm_len / SHA_256_DIGEST_LENGTH
       + (okm_len % SHA_256_DIGEST_LENGTH ? 1 : 0);
 
-  chunks[0].data = t_i;
-  chunks[0].data_len = SHA_256_DIGEST_LENGTH;
-  chunks[1].data = info;
-  chunks[1].data_len = info_len;
-  chunks[2].data = &i;
-  chunks[2].data_len = 1;
-
   for(i = 1; i <= n; i++) {
-    hmac_over_data_chunks(prk, prk_len,
-        chunks + (i == 1), 3 - (i == 1),
-        t_i);
+    sha_256_hmac_init(prk, prk_len);
+    if(i != 1) {
+      sha_256_hmac_update(t_i, sizeof(t_i));
+    }
+    sha_256_hmac_update(info, info_len);
+    sha_256_hmac_update(&i, sizeof(i));
+    sha_256_hmac_finish(t_i);
     memcpy(okm + ((i - 1) * SHA_256_DIGEST_LENGTH),
-        t_i,
-        MIN(SHA_256_DIGEST_LENGTH, okm_len));
+           t_i,
+           MIN(SHA_256_DIGEST_LENGTH, okm_len));
     okm_len -= SHA_256_DIGEST_LENGTH;
   }
 }
 /*---------------------------------------------------------------------------*/
 void
 sha_256_hkdf(const uint8_t *salt, size_t salt_len,
-    const uint8_t *ikm, size_t ikm_len,
-    const uint8_t *info, size_t info_len,
-    uint8_t *okm, uint_fast16_t okm_len)
+             const uint8_t *ikm, size_t ikm_len,
+             const uint8_t *info, size_t info_len,
+             uint8_t *okm, uint_fast16_t okm_len)
 {
   uint8_t prk[SHA_256_DIGEST_LENGTH];
 
@@ -459,3 +460,5 @@ const struct sha_256_driver sha_256_driver = {
   sha_256_hash,
 };
 /*---------------------------------------------------------------------------*/
+
+/** @} */
