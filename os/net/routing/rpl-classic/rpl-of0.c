@@ -125,7 +125,13 @@ parent_rank_increase(rpl_parent_t *p)
     return RPL_INFINITE_RANK;
   }
   min_hoprankinc = p->dag->instance->min_hoprankinc;
+  LOG_DBG("Parent: ");
+  LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
+  LOG_DBG_("rank_factor %u step_of_rank %u min_hoprankinc %u -> rank_increase %u\n",
+         RANK_FACTOR, STEP_OF_RANK(p), min_hoprankinc,
+         (RANK_FACTOR * STEP_OF_RANK(p) + RANK_STRETCH) * min_hoprankinc);
   return (RANK_FACTOR * STEP_OF_RANK(p) + RANK_STRETCH) * min_hoprankinc;
+
 }
 /*---------------------------------------------------------------------------*/
 static uint16_t

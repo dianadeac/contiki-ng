@@ -27,4 +27,17 @@
  * SUCH DAMAGE.
  */
 #define TCPIP_CONF_ANNOTATE_TRANSMISSIONS 1
-#define LOG_CONF_LEVEL_RPL LOG_LEVEL_INFO
+#define LOG_CONF_LEVEL_MAC LOG_LEVEL_DBG
+
+// #define RPL_CONF_DIO_REFRESH_DAO_ROUTES 0
+// #define RPL_CONF_WITH_PROBING 0
+
+// #define RPL_CONF_WITH_DAO_ACK 1
+
+// #define RPL_CONF_SUPPORTED_OFS {&rpl_mrhof, &rpl_of0}
+// #define RPL_CONF_OF_OCP RPL_OCP_OF0
+
+/* Enable OFO with fixed step rank. This is the equivalent of the step count*/
+// #define RPL_OF0_CONF_SR RPL_OF0_FIXED_SR
+
+//#define TSCH_CONF_DEFAULT_HOPPING_SEQUENCE TSCH_HOPPING_SEQUENCE_16_16
