@@ -165,7 +165,7 @@ is_sensible_string(const unsigned char *s, int len)
   }
 
   /* Edge-case: printable characters in flow label */
-  if(len >= 2 && (s[0] & 0xF0) == 0x60 
+  if(len >= 2 && (s[0] & 0xF0) == 0x60
               && (s[1] == '\r' || s[1] == '\n' || s[1] == '\t')) {
     return 0;
   }
@@ -241,7 +241,7 @@ serial_to_tun(FILE *inslip, int outfd)
           /* Prefix info requested */
           struct in6_addr addr;
 	  int i;
-	  char *s = strchr(ipaddr, '/');
+	  char *s = (char *)strchr(ipaddr, '/');
 	  if(s != NULL) {
 	    *s = '\0';
 	  }
@@ -516,7 +516,7 @@ tun_to_serial(int infd)
   int size;
 
   if((size = read(infd, uip.inbuf, 2000)) == -1) err(1, "tun_to_serial: read");
-  
+
 #ifdef __APPLE__
 #define UTUN_HEADER_LEN 4
   /* Fake IFF_NO_PI on macOS by ignoring the first 4 bytes containing AF_INET6 */
@@ -636,9 +636,9 @@ tun_alloc(char *dev, int tap)
 #include <sys/kern_control.h>
 #include <net/if_utun.h>
 
-/* 
+/*
  * Reference for utun on macOS:
- * http://newosxbook.com/src.jl?tree=listings&file=17-15-utun.c 
+ * http://newosxbook.com/src.jl?tree=listings&file=17-15-utun.c
  */
 int
 tun_alloc(char *dev, int tap)
@@ -666,7 +666,7 @@ tun_alloc(char *dev, int tap)
   }
 
   fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
-   
+
   if(fd == -1) {
     perror("socket(SYSPROTO_CONTROL)");
     return -1;

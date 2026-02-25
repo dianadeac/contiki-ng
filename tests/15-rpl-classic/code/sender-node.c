@@ -114,10 +114,10 @@ PROCESS_THREAD(sender_node_process, ev, data)
     default_prefix = uip_ds6_default_prefix();
     uip_ip6addr_copy(&addr, default_prefix);
 
-    addr.u16[4] = UIP_HTONS(0x0201);
-    addr.u16[5] = UIP_HTONS(0x0001);
-    addr.u16[6] = UIP_HTONS(0x0001);
-    addr.u16[7] = UIP_HTONS(0x0001);
+    addr.u16[4] = UIP_HTONS(0x0207);
+    addr.u16[5] = UIP_HTONS(0x0007);
+    addr.u16[6] = UIP_HTONS(0x0007);
+    addr.u16[7] = UIP_HTONS(0x0007);
 
     {
       static unsigned int message_number;
